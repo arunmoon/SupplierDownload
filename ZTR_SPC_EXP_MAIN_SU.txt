@@ -798,7 +798,7 @@
       <xsl:with-param name="field_name" select="'META_INSTANCE'"/>
     </xsl:call-template>
   </xsl:variable>
-  <xsl:variable name="additional_info_row" select="$metarows[normalize-space(input:Cell[$g_prop_specid_idx]/input:Data)='Additional Information' or normalize-space(input:Cell[$g_prop_lnum_idx]/input:Data)='5']"/>
+  <xsl:variable name="additional_info_row" select="$metarows[normalize-space(input:Cell[$g_prop_specid_idx]/input:Data)='Additional Information']"/>
   <xsl:variable name="additional_info" select="$additional_info_row/input:Cell[$col_idx]/input:Data"/>
 
   <xsl:call-template name="open_row"/>
@@ -812,7 +812,7 @@
   <xsl:call-template name="draw_cell"><xsl:with-param name="text" select="$additional_info"/></xsl:call-template>
   <xsl:call-template name="draw_cell"><xsl:with-param name="text" select="$metarows[1]/input:Cell[$col_idx]/input:Data"/></xsl:call-template>
   <xsl:call-template name="draw_cell">
-    <xsl:with-param name="text" select="''"/>
+    <xsl:with-param name="text" select="$datarow/input:Cell[$col_idx]/input:Data"/>
     <xsl:with-param name="datatype" select="$metarows[4]/input:Cell[$col_idx]/input:Data/text()"/>
   </xsl:call-template>
   <xsl:call-template name="close_row"/>
