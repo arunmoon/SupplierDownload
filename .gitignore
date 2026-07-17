@@ -1,0 +1,21 @@
+.agents/
+.codex/
+
+# Binary/reference exports
+*.SAR
+*.sar
+*.pdf
+*.docx
+*.xlsx
+*.xls
+*.jpeg
+*.jpg
+*.png
+
+# Generated/export samples
+*.xml
+*.HTML
+*.html
+
+# Keep source-control metadata local
+*.code-workspace

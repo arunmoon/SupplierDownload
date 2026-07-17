@@ -1,0 +1,595 @@
+SAP Note Number 1727698
+Number	1727698
+Version	0003
+Processor	-
+Processing Status	new
+Impl. State	Cannot be implemented
+Language	E
+Short Text	Implementing BAdIs for Download Data
+Component	PLM-WUI-RCP Recipe Development
+Long Text
+Symptom
+The Download Data function is completely generic, which means that it can be fully adapted. If the default functionality does not suit your needs, new BAdI implementations can be created to modify any element of the function, and then these can be used as variants.
+
+The BAdIs can be found in Customizing for Recipe Development under Logistics - General -> Product Lifecycle Management (PLM) -> PLM Web User Interface -> PLM Web Applications -> Download Data.
+
+In this document you can find information for the following activities:
+
+1. Creating a new variant
+2. Modifying the XSL transformation
+3. Renaming a field in the generic data structure
+4. Adding a custom defined field to the generic data structure
+5. Renaming a group in the generic data structure
+6. Adding a custom group to the generic data structure
+7. Adding existing fields to a custom group
+Other Terms
+Download Data, Specification, Recipe, PLM WUI
+
+Reason and Prerequisites
+Solution
+1. Creating a New Variant
+
+
+To modify the existing implementations, first you must create your own variant as follows:
+
+1. Launch the SE18 transaction.
+2. Display the /PLMB/ES_EXPORTING_TOOL Enhancement Spot.
+3. In the /PLMB/EXP_EXPORTING BAdI, right-click on Implementations and select
+Create BAdI Implementation
+
+.
+4. In the popup window, create a new Enhancement Implementation (EI) to save your variant in. Save it as a local object.
+Note: When creating an EI as a local object, use the Z namespace.
+
+5. Select the newly created EI and continue.
+6. Name your variant, fill the description, and name the Implementing Class (using the Z namespace).
+7. The newly created EI is displayed. On the left side, double-click on the
+Filter Val.
+
+of the newly created BAdI Implementation.
+8. In Edit mode, add a new filter. Set it according to the following:
+GOS_TYPE = PLM_RCP in case of creating an implementation for recipes
+GOS_TYPE = PLM_RSPSUB in case of creating an implementation for specifications
+9. Activate your implementation. Select each line when activating.
+10. On the
+Enhancement Implementation Elements
+
+tab, double-click the Implementing Class. On the right side, choose the Edit button next to the name of the Implementing Class.
+11. On the
+Properties
+
+tab, click the
+Superclass
+
+button, then fill the Superclass field according to the following:
+/PLMI/CL_RCP_EXP_EXPORTING_SN in case of creating an implementation for one recipe
+/PLMI/CL_RCP_EXP_EXPORTING_CP in case of creating an implementation for more recipes
+/PLMI/CL_SPC_EXP_EXPORTING_SN in case of creating an implementation for one specification
+/PLMI/CL_SPC_EXP_EXPORTING_CP in case of creating an implementation for more specifications
+Try to activate your implementation class. An error message will be displayed. Click Display Errors.
+
+12. On the
+Interfaces
+
+tab, delete the duplicate interface relationships.
+Caution: Do not delete the inherited interface relationships (displayed in blue).
+
+13. On the
+Methods
+
+tab, redefine and edit the following methods:
+Caution: Do not edit the methods of the abstract superclass.
+
+a) DEFINE_VARIANT
+ method DEFINE_VARIANT.
+me->mv_variant_id= 'XYZ'.
+me->mv_variant_descr = text-001.
+endmethod.
+
+ Where XYZ is the ID of your variant.
+
+ In the upper menu, choose Goto -> Text Elements. In row 001, write a description to your variant.
+
+b) GET_VARIANT_VALIDITY
+ method GET_VARIANT_VALIDITY.
+IF iv_variant_id EQ 'XYZ'.
+rv_variant_is_valid = abap_true.
+ELSE.
+rv_variant_is_valid = abap_false.
+ENDIF.
+endmethod.
+
+ Where XYZ is the ID of your variant given in the DEFINE_VARIANT method.
+
+14. Activate your implementation class.
+15. Display the /PLMB/ES_EXPORTING_TOOL Enhancement Spot again.
+16. In the /PLMB/EXP_DATA_MODEL BAdI, right-click on Implementations and select
+Create BAdI Implementation
+
+.
+17. Select the same EI as in Step 5.
+18. Name your data model implementation, fill the description, and name the Implementing Class (using the Z namespace).
+19. The newly created BAdI Implementation is displayed. On the left side, double-click on
+Filter Val
+
+.
+20. In Edit mode, add two new filters. Set them according to the following:
+GOS_TYPE
+o GOS_TYPE = PLM_RCP in case of creating an implementation for recipes
+o GOS_TYPE = PLM_RSPSUB in case of creating an implementation for specifications
+VARIANT = XYZ
+Where XYZ is the ID of your variant (defined in Step 13).
+21. Activate your implementation. Select each line when activating.
+22. On the
+Enhancement Implementation Elements
+
+tab, double-click on the Implementing Class. On the right side, choose the
+Edit
+
+button next to the name of the Implementing Class.
+23. On the
+Properties
+
+tab, click the
+Superclass
+
+button, then fill the Superclass field according to the following:
+/PLMI/CL_RCP_EXP_DATA_MODEL_SN in case of creating an implementation for one recipe
+/PLMI/CL_RCP_EXP_DATA_MODEL_CP in case of creating an implementation for more recipes
+/PLMI/CL_SPC_EXP_DATA_MODEL_SN in case of creating an implementation for one specification
+/PLMI/CL_SPC_EXP_DATA_MODEL_CP in case of creating an implementation for more specifications
+Try to activate your implementation class. An error message will be displayed. Click Display Errors.
+
+24. On the
+Interfaces
+
+tab, delete the duplicate interface relationships.
+Caution: Do not delete the inherited interface relationships (displayed in blue).
+
+25. Activate your implementation class.
+26. Activate your Enhancement Implementation.
+27. Display the /PLMU/ES_EXPORTING_TOOL Enhancement Spot. Make sure that you are using the PLMU version and not the PLMB version as before.
+28. In the /PLMU/EXP_FILE BAdI, right-click on
+Implementations
+
+and select
+Create BAdI Implementation
+
+.
+29. In the popup window, create a new Enhancement Implementation package to save your variant in. Save it as a local object.
+Note: When creating a package as a local object, use the Z namespace.
+
+30. Select the newly created package.
+31. Name your data model implementation, fill the description, and name the Implementing Class (using the Z namespace).
+32. The newly created Enhancement Implementation is displayed. On the left side, double-click on the
+Filter Val.
+
+of the newly created BAdI Implementation.
+33. In Edit mode, add two new filters. Set them according to the following:
+GOS_TYPE
+GOS_TYPE = PLM_RCP in case of creating an implementation for recipes
+GOS_TYPE = PLM_RSPSUB in case of creating an implementation for specifications
+VARIANT = XYZ
+Where XYZ is the ID of your variant.
+34. Double-click on the
+Implementing Class
+
+and on the right side, double-click on the UPDATE_FILE method.
+35. A popup window asks whether you want to create a new implementing class. Choose
+Save
+
+.
+36. Edit the UPDATE_FILE method with the following code:
+METHOD /plmu/if_exp_file~update_file.
+IF cv_file IS NOT INITIAL.
+CALL TRANSFORMATION ABC
+SOURCE XML cv_file
+RESULT XML cv_file.
+ENDIF.
+
+ENDMETHOD.
+
+Where ABC is the name of the standard XSL transformations, as follows:
+
+In case of recipes: /plmu/tr_rcp_exp_main
+In case of specifications: /plmu/tr_spc_exp_main
+37. Activate your Enhancement Implementation.
+
+2. Modifying the XSL Transformation
+
+
+The raw data coming from the database is formatted with the help of a group of XSL transformations. If you want to change the format of the output Excel file, you have to modify some of these transformations, depending on the type of the change. The following list summarizes the distinctive functions of the transformations:
+
+/PLMU/TR_[RCP/SPC]_EXP_MAIN: This is the main transformation thatcalls the other transformations and contains essential information.
+/PLMU/TR_[RCP/SPC]_EXP_META: Contains the structure of the output file.
+/PLMU/TR_[RCP/SPC]_EXP_UTIL: Adds helper templates to the main transformation.
+/PLMU/TR_[RCP/SPC]_EXP_XLS_STYLES: Defines the style (colors, fonts, etc.).
+
+To modify an XSL transformation, perform the following steps:
+
+1. Create your own variant as described in the
+Creating a New Variant
+
+chapter.
+Note: If you already created a variant, you can use it if you want to modify in the same data set (recipe or specification, one or more objects). If not, you must create a new implementing class in the /PLMB/EXP_DATA_MODEL BAdI (the same procedure from Step 18).
+
+2. Launch the SE80 transaction.
+3. In the Repository Browser, search for one of the following packages:
+/PLMU/UI_RCP in case of recipes
+/PLMU/UI_SPC_EXP in case of specifications
+4. In the
+Transformations
+
+folder, right-click on the XSL transformation you want to modify (_META or _XLS_STYLES), and choose
+Copy
+
+.
+5. In the popup window, name your new transformation. Save it as a local object.
+6. Display Local Objects and edit this copied transformation according to your needs. For more information on the XSL transformation, see the Application Help.
+7. Save and activate your transformation after editing.
+8. Right-click on the transformation ending with _MAIN and choose
+Copy.
+
+9. In the popup window, name your new transformation. Save it as a local object.
+10. Display Local Objects, find the following lines:
+<xsl:include sap:name="/PLMU/TR_RCP_EXP_UTIL"/>
+<xsl:include sap:name="/PLMU/TR_RCP_EXP_META"/>
+<xsl:include sap:name="/PLMU/TR_RCP_EXP_XLS_STYLES"/>
+
+Change the name of the appropriate transactions to the name of your transaction modified in Step 6.
+
+11. Save and activate your transformation.
+12. Open the Implementation Class you created in Step 31 of the
+Creating a New Variant
+
+procedure.
+13. Edit the UPDATE_FILE method with the following code:
+METHOD /plmu/if_exp_file~update_file.
+
+IF cv_file IS NOT INITIAL.
+CALL TRANSFORMATION ZZZ
+SOURCE XML cv_file
+RESULT XML cv_file.
+ENDIF.
+
+ENDMETHOD.
+
+Where ZZZ is the name of your XSL transformation copied from _MAIN in Step 8.
+
+14. Activate your Enhancement Implementation.
+3. Renaming a Field in the Generic Data Structure
+
+
+If you want to rename a field on the UI of the Download Data function, perform the following steps:
+Note: In case of recipes, this renaming also affects the output. In case of specifications, the renaming affects only the UI data structure.
+
+1. Create your own variant as described in the
+Creating a New Variant
+
+chapter.
+Note: If you already created a variant, you can use it if you want to modify in the same data set (recipe or specification, one or more objects). If not, you must create a new implementing class in the /PLMB/EXP_DATA_MODEL BAdI (the same procedure from Step 18).
+
+2. Redefine the SET_FIELD_DESC method of your Data Model implementing class created in Step 18.
+3. Open the redefined method, change to edit mode and insert the following code:
+method /PLMB/IF_EXP_DATA_MODEL~SET_FIELD_DESC.
+
+CALL METHOD SUPER->/PLMB/IF_EXP_DATA_MODEL~SET_FIELD_DESC
+EXPORTING
+IT_FIELD_DESC = IT_FIELD_DESC
+.
+
+DATA ls_field_desc TYPE /plmb/s_exp_field_desc.
+
+LOOP AT mt_field_desc INTO ls_field_desc.
+
+" Repeat this section if you want to rename more fields
+
+if ls_field_desc-field_desc = 'Old fieldname'.
+ls_field_desc-field_desc = 'New fieldname'.
+MODIFY mt_field_desc INDEX sy-tabix FROM ls_field_desc.
+endif.
+
+" End of repeat section
+
+ENDLOOP.
+
+endmethod.
+
+Where:
+
+Old fieldname is the exact fieldname you want to modify.
+New fieldname is the required modification.
+4. Activate your implementing class.
+4. Adding a Custom Defined Field to the Generic Data Structure
+
+
+If you want to insert a field that is defined in the Node Structure but is not present in the default data structure on the download data main view, perform the following steps:
+
+Caution: This procedure works only if the custom field is already in the node structure.
+
+1. Create your own variant as described in the
+Creating a New Variant
+
+chapter.
+Note: If you already created a variant, you can use it if you want to insert fields in the same data set (recipe or specification, one or more objects). If not, you must create a new implementing class in the /PLMB/EXP_DATA_MODEL BAdI (the same procedure from Step 18).
+
+2. Redefine the SET_FIELD_ASSIGNMENT method of your implementing class created in Step 18.
+3. Open the redefined method, change to edit mode and insert the following code:
+ method /PLMB/IF_EXP_DATA_MODEL~SET_FIELD_ASSIGNMENT.
+
+
+CALL METHOD SUPER->/PLMB/IF_EXP_DATA_MODEL~SET_FIELD_ASSIGNMENT
+EXPORTING
+IT_FIELD_ASSIGNMENT = IT_FIELD_ASSIGNMENT
+.
+
+DATA ls_field_assignment TYPE /PLMB/S_EXP_FIELD_ASSIGNMENT.
+
+" Repeat this section to add new fields to groups
+
+ls_field_assignment-abbid= 'ABBID'.
+ls_field_assignment-node_name= 'NODENAME'.
+ls_field_assignment-field_name= 'CUST_FIELD'.
+ls_field_assignment-group_no= 0200.
+INSERT ls_field_assignment INTO TABLE mt_field_assignment.
+
+" End of repeat section
+
+endmethod.
+
+Where:
+
+ABBID is the application building block ID the field is in.
+NODENAME is the name of the node the custom field is in.
+CUST_FIELD is the technical name of the custom field.
+0200 is the number of the group you want to assign the field to. For more information on the default group numbers, see the Appendix A - Default Specification Group Structure or Appendix B - Default Recipe Group Structure chapters.
+4. Activate your implementing class.
+
+Note: You can add new fields to the structure and add an existing field to more groups with editing the same method. For more information on adding existing fields to more groups (for example a custom generated group), see the Adding Existing Fields to a Custom Group chapter.
+
+After this procedure, you have to modify the XSL transformation to add the custom field to the output as well. For more information, see the Modifying the XSL Transformation chapter.
+
+5. Renaming a Group in the Generic Data Structure
+
+
+If you want to rename an existing group in the generic data structure, perform the following steps:
+
+1. Create your own variant as described in the Creating a New Variant chapter.
+Note: If you already created a variant, you can use it if you want to renaming groups in the same data set (recipe or specification, one or more objects). If not, you must create a new implementing class in the /PLMB/EXP_DATA_MODEL BAdI (the same procedure from Step 18).
+
+2. Redefine the SET_GROUP_DEF method of your implementing class created in Step 18.
+3. Open the redefined method, change to edit mode and insert the following code:
+method /PLMB/IF_EXP_DATA_MODEL~SET_GROUP_DEF.
+
+CALL METHOD SUPER->/PLMB/IF_EXP_DATA_MODEL~SET_GROUP_DEF
+EXPORTING
+IT_GROUP_DEF = it_group_def
+.
+
+DATA ls_group_def TYPE /PLMB/S_EXP_GROUP_DEFINITION.
+
+LOOP AT mt_group_def INTO ls_group_def.
+
+" Repeat this section to modify more predefined groups
+
+if ls_group_def-group_desc = 'Old groupname'.
+ls_group_def-group_desc = 'New groupname'.
+MODIFY mt_group_def INDEX sy-tabix FROM ls_group_def.
+endif.
+
+" End of repeat section
+
+ENDLOOP.
+CLEAR ls_group_def.
+
+endmethod.
+
+Where:
+
+Old groupname is the exact name of the group you want to modify.
+New groupname is the required modification.
+4. Activate your implementing class.
+
+Note: You can rename and add groups with editing the same method. For more information on adding a new group to the generic data structure, see the Adding a Custom Group to the Generic Data Structure chapter.
+
+6. Adding a Custom Group to the Generic Data Structure
+
+
+If you want to add your own group to the first level of the generic data structure, proceed with the following steps:
+
+1. Create your own variant as described in the
+Creating a New Variant
+
+chapter.
+Note: If you already created a variant, you can use it if you want to add groups in the same data set (recipe or specification, one or more objects). If not, you must create a new implementing class in the /PLMB/EXP_DATA_MODEL BAdI (the same procedure from Step 18).
+
+2. Redefine the SET_GROUP_DEF method of your implementing class created in Step 18.
+3. Open the redefined method, change to edit mode and insert the following code:
+method /PLMB/IF_EXP_DATA_MODEL~SET_GROUP_DEF.
+
+CALL METHOD SUPER->/PLMB/IF_EXP_DATA_MODEL~SET_GROUP_DEF
+EXPORTING
+IT_GROUP_DEF = it_group_def
+.
+
+DATA ls_group_def TYPE /PLMB/S_EXP_GROUP_DEFINITION.
+
+" Repeat this section if you want to add more groups
+
+ls_group_def-parent_group_no = 0000.
+ls_group_def-group_no= 0200.
+ls_group_def-group_desc= 'My Own Group'.
+INSERT ls_group_def INTO TABLE mt_group_def.
+
+" End of repeat section
+
+endmethod.
+
+Where:
+
+0000 is the appropriate parent_group_no if you want to add the group to the first level. If you want to insert your group into an existing group, use the number of that group. For more information on the default group numbers, see the Appendix A - Default Specification Group Structure or Appendix B - Default Recipe Group Structure chapters.
+0200 is an arbitrary group number that is not used by the existing groups. This defines the order of the groups, so the example number 0200 puts the newly created group to the end.
+ Caution: Make sure that you choose an unused number.
+
+My Own Group is the name of the newly created group.
+4. Activate your implementing class.
+
+Note: You can rename and add groups with editing the same method. For more information on renaming a group in the generic data structure, see the Renaming a Group in the Generic Data Structure chapter.
+
+7. Adding Existing Fields to a Custom Group
+
+
+If you want to add fields to your custom group created as described in the Adding a Custom Group to the Generic Data Structure chapter, perform the following steps:
+
+1. Create your own variant as described in the
+Creating a New Variant
+
+chapter.
+Note: If you already created a variant, you can use it if you want to add fields in the same data set (recipe or specification, one or more objects). If not, you must create a new implementing class in the /PLMB/EXP_DATA_MODEL BAdI (the same procedure from Step 18).
+
+2. Redefine the SET_FIELD_ASSIGNMENT method of your implementing class created in Step 18.
+3. Open the redefined method, change to edit mode and insert the following code:
+ method /PLMB/IF_EXP_DATA_MODEL~SET_FIELD_ASSIGNMENT.
+
+
+CALL METHOD SUPER->/PLMB/IF_EXP_DATA_MODEL~SET_FIELD_ASSIGNMENT
+EXPORTING
+IT_FIELD_ASSIGNMENT = IT_FIELD_ASSIGNMENT
+.
+
+DATA ls_field_assignment TYPE /PLMB/S_EXP_FIELD_ASSIGNMENT.
+
+LOOP AT MT_FIELD_ASSIGNMENT INTO ls_field_assignment.
+
+" Repeat this section if you want to add more fields
+
+if ls_field_assignment-node_name = 'NODENAME' and ls_field_assignment-field_name = 'FIELDNAME'.
+ls_field_assignment-group_no = 0200.
+INSERT ls_field_assignment INTO TABLE mt_field_assignment.
+endif.
+
+" End of repeat section
+
+ENDLOOP.
+CLEAR ls_field_assignment.
+
+endmethod.
+
+Where:
+
+NODENAME is the node name the field is in.
+FIELDNAME is the technical name of the field.
+0200 is the number of the group you want to assign the field to (as defined in Step 3 of the Adding a Custom Group to the Generic Data Structure chapter). For more information on the default group numbers, see the Appendix A - Default Specification Group Structure or Appendix B - Default Recipe Group Structure chapters.
+4. Activate your implementing class.
+
+Note: You can add new fields to the structure and add an existing field to more groups with editing the same method. For more information on adding a custom defined field to the data structure, see the Adding a Custom Defined Field to the Generic Data Structure chapter.
+
+APPENDIX A - Default Specification Group Structure
+
+GROUP_NO	PARENT_GROUP_NO	GROUP_DESC
+80	0	Basic Data
+180	0	Identifiers
+280	0	Material Assignment
+530	0	Status
+581	80	Header Data
+582	80	Validity
+583	80	Administration
+584	80	Access Control Context
+585	180	Administration Data Information
+586	280	Administration Data Information
+597	0	Relationships
+588	587	Specification Inherits From
+589	588	Administration Data Information
+590	587	Specification Passes on To
+591	590	Administration Data Information
+592	530	Administration Data Information
+APPENDIX B - DEFAULT RECIPE GROUP STRUCTURE
+
+GROUP_NO	PARENT_GROUP_NO	GROUP_DESC
+100	0	General Data
+110	100	Basic Data
+120	110	Header Data
+130	110	Validity
+140	110	Access Control Context
+150	110	Administrative Data
+170	100	Descriptions
+180	100	Documents
+190	100	Classes
+200	100	Characteristic Values
+220	0	Formula
+230	220	Input and Output
+240	0	Process
+242	240	Recipe
+243	242	Process Elements
+244	242	Process Parameters
+245	242	Equipment Requirements
+246	245	Documents
+247	245	Characteristic Values
+250	240	Stage
+260	250	Process Elements
+265	250	Formula Items
+270	250	Process Parameters
+280	250	Descriptions
+290	250	Documents
+300	250	Equipment Requirements
+310	300	Documents
+320	300	Characteristic Values
+330	240	Operation
+340	330	Process Elements
+345	330	Formula Items
+350	330	Process Parameters
+354	330	Sequence
+355	354	Preceding Operations
+356	354	Subsequent Operations
+360	330	Descriptions
+370	330	Documents
+380	330	Equipment Requirements
+390	380	Documents
+400	380	Characteristic Values
+410	240	Action
+413	410	Process Elements
+416	410	Formula Items
+420	410	Process Parameters
+430	410	Descriptions
+440	410	Documents
+450	410	Equipment Requirements
+460	450	Documents
+480	450	Characteristic Values
+490	0	Calculation Results
+500	490	Calculation Parameters
+510	500	Logistic
+520	500	Scientific
+530	490	Ingredients
+540	530	Ingredients
+550	530	By Stage
+560	490	Composition
+570	560	Composition
+580	560	By Stage
+590	490	Nutrients
+600	590	Nutrient Composition
+620	590	By Stage
+630	620	Normal
+650	490	Diets
+660	650	Diet Composition
+680	650	By Stage
+690	680	Normal
+710	490	Allergens
+720	710	Allergens
+740	710	By Stage
+750	740	Normal
+770	490	Religious Certificate Compliance
+780	770	Religious Cert. Compliance
+800	770	By Stage
+810	800	Normal
+830	490	Genetically Modified Ingredients
+840	830	Genetically Modified Ingredients
+860	830	By Stage
+870	860	Normal
+890	490	Costs
+900	890	Costs
+910	890	By Stage
+920	0	Process Route
+Valid Releases
+Unknown
+Links to Support Packages
+Software Component	Release	Package Name
