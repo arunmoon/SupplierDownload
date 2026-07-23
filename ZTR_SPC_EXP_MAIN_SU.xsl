@@ -6,7 +6,6 @@
       xmlns:rcp="http://www.sap.com/recipe_development"
       xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet"
       exclude-result-prefixes="rcp input"> <!-- white space separated list of namespace prefixes that should not be sent to the output -->
-
 <!-- Includes -->
 <xsl:include sap:name="ZTR_SPC_EXP_META_SU"/>       <!-- Meta information for displaying data -->
 <xsl:include sap:name="/PLMU/TR_SPC_EXP_STYLES"/> <!-- Style definitions for excel -->
@@ -686,14 +685,13 @@
   <xsl:param name="rows"/>   <!-- data rows -->
 
   <!-- Display Header -->
-  <xsl:if test="count($rows) > 0">
+  <!-- <xsl:if test="count($rows) > 0">
     <xsl:call-template name="empty_row_raw"/>
     <xsl:call-template name="heading">
-<!--      <xsl:with-param name="text" select="concat($num_of_worksheets+1, '. ', 'Properties')"/> -->
      <xsl:with-param name="text" select="'Properties'"/>
      <xsl:with-param name="level" select="1"/>
     </xsl:call-template>
-  </xsl:if>
+  </xsl:if> -->
   <xsl:variable name="chapter_parent" select="$num_of_worksheets+1"/>
 
   <xsl:choose>
@@ -724,7 +722,7 @@
 <xsl:template name="p_flat_property_tree">
   <xsl:param name="rows"/>
 
-  <xsl:call-template name="empty_row_raw"/>
+  <!-- <xsl:call-template name="empty_row_raw"/> -->
   <xsl:call-template name="open_table"/>
   <xsl:call-template name="open_table_header"/>
   <xsl:call-template name="open_row"/>
