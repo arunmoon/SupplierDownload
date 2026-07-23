@@ -175,19 +175,80 @@ METHOD process_table_data.
       CONCATENATE lv_additional_info 'Predefined list (dropdown)' INTO lv_additional_info SEPARATED BY '; '.
     ENDIF.
 
-    IF <ls_vatcust>-flg_input_required = abap_true.
-      CONCATENATE lv_additional_info 'Entry required' INTO lv_additional_info SEPARATED BY '; '.
-    ENDIF.
-
-    IF <ls_vatcust>-anzst IS NOT INITIAL.
-      lv_additional_info_part = <ls_vatcust>-anzst.
-      SHIFT lv_additional_info_part LEFT DELETING LEADING space.
-      CONCATENATE 'Length' lv_additional_info_part INTO lv_additional_info_part SEPARATED BY ' '.
-      CONCATENATE lv_additional_info lv_additional_info_part INTO lv_additional_info SEPARATED BY '; '.
-    ENDIF.
-
     CASE <ls_vatcust>-atfor.
       WHEN 'NUM' OR 'CURR'.
+        ASSIGN COMPONENT 'FLG_INTERVAL_VALUES_ALLOWED' OF STRUCTURE <ls_vatcust> TO <lv_data>.
+        IF sy-subrc <> 0.
+          ASSIGN COMPONENT 'FLG_INTERVAL_VALS_ALLOWED' OF STRUCTURE <ls_vatcust> TO <lv_data>.
+        ENDIF.
+        IF sy-subrc <> 0.
+          ASSIGN COMPONENT 'FLG_INTERVAL_ALLOWED' OF STRUCTURE <ls_vatcust> TO <lv_data>.
+        ENDIF.
+        IF sy-subrc <> 0.
+          ASSIGN COMPONENT 'ATINT' OF STRUCTURE <ls_vatcust> TO <lv_data>.
+        ENDIF.
+        IF sy-subrc = 0.
+          IF <lv_data> IS INITIAL OR <lv_data> = abap_false.
+            CONCATENATE lv_additional_info 'Interval vals not allowed' INTO lv_additional_info SEPARATED BY '; '.
+          ELSE.
+            CONCATENATE lv_additional_info 'Interval vals allowed' INTO lv_additional_info SEPARATED BY '; '.
+          ENDIF.
+        ENDIF.
+
+        ASSIGN COMPONENT 'FLG_NEGATIVE_VALUES_ALLOWED' OF STRUCTURE <ls_vatcust> TO <lv_data>.
+        IF sy-subrc <> 0.
+          ASSIGN COMPONENT 'FLG_NEGATIVE_VALS_ALLOWED' OF STRUCTURE <ls_vatcust> TO <lv_data>.
+        ENDIF.
+        IF sy-subrc <> 0.
+          ASSIGN COMPONENT 'FLG_NEG_VALUES_ALLOWED' OF STRUCTURE <ls_vatcust> TO <lv_data>.
+        ENDIF.
+        IF sy-subrc <> 0.
+          ASSIGN COMPONENT 'ATVOR' OF STRUCTURE <ls_vatcust> TO <lv_data>.
+        ENDIF.
+        IF sy-subrc = 0.
+          IF <lv_data> IS INITIAL OR <lv_data> = abap_false.
+            CONCATENATE lv_additional_info 'Negative Vals not allowed' INTO lv_additional_info SEPARATED BY '; '.
+          ELSE.
+            CONCATENATE lv_additional_info 'Negative Vals Allowed' INTO lv_additional_info SEPARATED BY '; '.
+          ENDIF.
+        ENDIF.
+
+        ASSIGN COMPONENT 'FLG_RESTRICTABLE' OF STRUCTURE <ls_vatcust> TO <lv_data>.
+        IF sy-subrc <> 0.
+          ASSIGN COMPONENT 'FLG_IS_RESTRICTABLE' OF STRUCTURE <ls_vatcust> TO <lv_data>.
+        ENDIF.
+        IF sy-subrc <> 0.
+          ASSIGN COMPONENT 'ATKLE' OF STRUCTURE <ls_vatcust> TO <lv_data>.
+        ENDIF.
+        IF sy-subrc = 0.
+          IF <lv_data> IS INITIAL OR <lv_data> = abap_false.
+            CONCATENATE lv_additional_info 'Not restrictable' INTO lv_additional_info SEPARATED BY '; '.
+          ELSE.
+            CONCATENATE lv_additional_info 'Restrictable' INTO lv_additional_info SEPARATED BY '; '.
+          ENDIF.
+        ENDIF.
+
+        IF <ls_vatcust>-flg_input_required = abap_true.
+          CONCATENATE lv_additional_info 'Entry required' INTO lv_additional_info SEPARATED BY '; '.
+        ELSE.
+          CONCATENATE lv_additional_info 'Entry not required' INTO lv_additional_info SEPARATED BY '; '.
+        ENDIF.
+
+        IF <ls_vatcust>-anzst IS NOT INITIAL.
+          lv_additional_info_part = <ls_vatcust>-anzst.
+          SHIFT lv_additional_info_part LEFT DELETING LEADING space.
+          CONCATENATE 'Length' lv_additional_info_part INTO lv_additional_info_part SEPARATED BY ' '.
+          CONCATENATE lv_additional_info lv_additional_info_part INTO lv_additional_info SEPARATED BY '; '.
+        ENDIF.
+
+        ASSIGN COMPONENT 'ANZDZ' OF STRUCTURE <ls_vatcust> TO <lv_data>.
+        IF sy-subrc = 0 AND <lv_data> IS NOT INITIAL.
+          lv_additional_info_part = <lv_data>.
+          SHIFT lv_additional_info_part LEFT DELETING LEADING space.
+          CONCATENATE 'Decimal places' lv_additional_info_part INTO lv_additional_info_part SEPARATED BY ' '.
+          CONCATENATE lv_additional_info lv_additional_info_part INTO lv_additional_info SEPARATED BY '; '.
+        ENDIF.
+
         CONCATENATE lv_additional_info 'Numeric value' INTO lv_additional_info SEPARATED BY '; '.
         IF <ls_vatcust>-msehi IS NOT INITIAL.
           lv_additional_info_part = <ls_vatcust>-msehi.
@@ -195,9 +256,37 @@ METHOD process_table_data.
           CONCATENATE lv_additional_info lv_additional_info_part INTO lv_additional_info SEPARATED BY '; '.
         ENDIF.
       WHEN 'DATE'.
+        IF <ls_vatcust>-flg_input_required = abap_true.
+          CONCATENATE lv_additional_info 'Entry required' INTO lv_additional_info SEPARATED BY '; '.
+        ENDIF.
+        IF <ls_vatcust>-anzst IS NOT INITIAL.
+          lv_additional_info_part = <ls_vatcust>-anzst.
+          SHIFT lv_additional_info_part LEFT DELETING LEADING space.
+          CONCATENATE 'Length' lv_additional_info_part INTO lv_additional_info_part SEPARATED BY ' '.
+          CONCATENATE lv_additional_info lv_additional_info_part INTO lv_additional_info SEPARATED BY '; '.
+        ENDIF.
         CONCATENATE lv_additional_info 'Date format YYYYMMDD' INTO lv_additional_info SEPARATED BY '; '.
       WHEN 'CHAR'.
+        IF <ls_vatcust>-flg_input_required = abap_true.
+          CONCATENATE lv_additional_info 'Entry required' INTO lv_additional_info SEPARATED BY '; '.
+        ENDIF.
+        IF <ls_vatcust>-anzst IS NOT INITIAL.
+          lv_additional_info_part = <ls_vatcust>-anzst.
+          SHIFT lv_additional_info_part LEFT DELETING LEADING space.
+          CONCATENATE 'Length' lv_additional_info_part INTO lv_additional_info_part SEPARATED BY ' '.
+          CONCATENATE lv_additional_info lv_additional_info_part INTO lv_additional_info SEPARATED BY '; '.
+        ENDIF.
         CONCATENATE lv_additional_info 'Character value' INTO lv_additional_info SEPARATED BY '; '.
+      WHEN OTHERS.
+        IF <ls_vatcust>-flg_input_required = abap_true.
+          CONCATENATE lv_additional_info 'Entry required' INTO lv_additional_info SEPARATED BY '; '.
+        ENDIF.
+        IF <ls_vatcust>-anzst IS NOT INITIAL.
+          lv_additional_info_part = <ls_vatcust>-anzst.
+          SHIFT lv_additional_info_part LEFT DELETING LEADING space.
+          CONCATENATE 'Length' lv_additional_info_part INTO lv_additional_info_part SEPARATED BY ' '.
+          CONCATENATE lv_additional_info lv_additional_info_part INTO lv_additional_info SEPARATED BY '; '.
+        ENDIF.
     ENDCASE.
 
     lv_fieldname = <ls_vatcust>-atnam.

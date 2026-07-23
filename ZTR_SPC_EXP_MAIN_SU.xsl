@@ -812,7 +812,8 @@
   <xsl:call-template name="draw_cell"><xsl:with-param name="text" select="$additional_info"/></xsl:call-template>
   <xsl:call-template name="draw_cell"><xsl:with-param name="text" select="$metarows[1]/input:Cell[$col_idx]/input:Data"/></xsl:call-template>
   <xsl:call-template name="draw_cell">
-    <xsl:with-param name="text" select="$datarow/input:Cell[$col_idx]/input:Data"/>
+    <!--<xsl:with-param name="text" select="$datarow/input:Cell[$col_idx]/input:Data"/> -->
+    <xsl:with-param name="text" select=""/>
     <xsl:with-param name="datatype" select="$metarows[4]/input:Cell[$col_idx]/input:Data/text()"/>
   </xsl:call-template>
   <xsl:call-template name="close_row"/>
