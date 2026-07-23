@@ -184,9 +184,9 @@
   <node id="INSTANCES" display="normal" display-input-fields="yes" display-property-tree="flat">
     <field>ENGINE_VALUE_ASSIGNMENT_TYPE_D</field>
     <field>ENGINE_NODE_NAME_DESC</field>
-    <field>META_USAGE</field>
+    <field display="no">META_USAGE</field>
     <field>META_SPEC_ID</field>
-    <field>META_INSTANCE</field>
+    <field display="no">META_INSTANCE</field>
     <field>META_SORT</field>
     <field display="no">__STDVAI_SORT</field>
     <field display="no">__USAGE</field>
