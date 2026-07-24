@@ -727,7 +727,7 @@
   <xsl:call-template name="open_table_header"/>
   <xsl:call-template name="open_row"/>
   <xsl:call-template name="draw_cell"><xsl:with-param name="text" select="'Property Tree'"/><xsl:with-param name="style" select="'th13'"/></xsl:call-template>
-  <xsl:call-template name="draw_cell"><xsl:with-param name="text" select="'Prop tree ty'"/><xsl:with-param name="style" select="'th13'"/></xsl:call-template>
+  <xsl:call-template name="draw_cell"><xsl:with-param name="text" select="'Prop tree type'"/><xsl:with-param name="style" select="'th13'"/></xsl:call-template>
   <xsl:call-template name="draw_cell"><xsl:with-param name="text" select="'PT node'"/><xsl:with-param name="style" select="'th13'"/></xsl:call-template>
   <xsl:call-template name="draw_cell"><xsl:with-param name="text" select="'VAT'"/><xsl:with-param name="style" select="'th13'"/></xsl:call-template>
   <xsl:call-template name="draw_cell"><xsl:with-param name="text" select="'VAT ID'"/><xsl:with-param name="style" select="'th13'"/></xsl:call-template>
@@ -801,7 +801,7 @@
 
   <xsl:call-template name="open_row"/>
   <xsl:call-template name="draw_cell"><xsl:with-param name="text" select="$datarow/input:Cell[$g_prop_desc_idx]/input:Data"/></xsl:call-template>
-  <xsl:call-template name="draw_cell"><xsl:with-param name="text" select="$datarow/input:Cell[$g_prop_idx]/input:Data"/></xsl:call-template>
+  <xsl:call-template name="draw_cell"><xsl:with-param name="text" select="$datarow/input:Cell[$g_prop_node_desc_idx]/input:Data"/></xsl:call-template>
   <xsl:call-template name="draw_cell"><xsl:with-param name="text" select="$datarow/input:Cell[$g_prop_vac_idx]/input:Data"/></xsl:call-template>
   <xsl:call-template name="draw_cell"><xsl:with-param name="text" select="$datarow/input:Cell[$g_prop_desc_idx]/input:Data"/></xsl:call-template>
   <xsl:call-template name="draw_cell"><xsl:with-param name="text" select="$datarow/input:Cell[$g_prop_idx]/input:Data"/></xsl:call-template>

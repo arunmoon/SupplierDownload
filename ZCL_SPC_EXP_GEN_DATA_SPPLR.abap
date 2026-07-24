@@ -24,6 +24,7 @@ METHOD process_table_data.
     lv_fieldname            TYPE abap_compname,
     lv_additional_info      TYPE string,
     lv_additional_info_part TYPE string,
+    lv_property_tree_text   TYPE string,
     lr_metadata_line        TYPE REF TO data,
     lo_spi_connector_spc    TYPE REF TO /plmb/if_spi_appl_access,
     lv_insert_index         TYPE sy-tabix.
@@ -31,8 +32,11 @@ METHOD process_table_data.
   FIELD-SYMBOLS:
     <ls_table_meta_data> TYPE ty_s_table_meta_data,
     <ls_table_data>      TYPE /plmb/s_exp_table_data_export,
+    <ls_any_table_data>  TYPE /plmb/s_exp_table_data_export,
     <lt_table_data>      TYPE STANDARD TABLE,
+    <lt_any_table_data>  TYPE STANDARD TABLE,
     <ls_table_line>      TYPE any,
+    <ls_any_table_line>  TYPE any,
     <ls_metadata_line>   TYPE any,
     <lv_data>            TYPE any,
     <ls_vatcust>         TYPE /plmb/s_spc_val_conf_sp.
@@ -71,6 +75,58 @@ METHOD process_table_data.
     RETURN.
   ENDIF.
 
+  CALL METHOD /plmb/cl_spi_connector=>create_instance
+    EXPORTING
+      iv_abbid     = /plmb/if_abbid_c=>gc_spc
+    IMPORTING
+      eo_connector = lo_spi_connector_spc.
+  IF lo_spi_connector_spc IS NOT BOUND.
+    RETURN.
+  ENDIF.
+
+  LOOP AT ct_table_data ASSIGNING <ls_any_table_data>.
+    ASSIGN <ls_any_table_data>-table_data->* TO <lt_any_table_data>.
+    IF sy-subrc <> 0.
+      CONTINUE.
+    ENDIF.
+
+    LOOP AT <lt_any_table_data> ASSIGNING <ls_any_table_line>.
+      ASSIGN COMPONENT /plmb/if_exp_c=>gc_component_key-engine_datatype OF STRUCTURE <ls_any_table_line> TO <lv_data>.
+      IF sy-subrc <> 0.
+        CONTINUE.
+      ENDIF.
+      IF <lv_data> <> /plmb/if_exp_c=>gc_data_type-tabledata.
+        CONTINUE.
+      ENDIF.
+
+      ASSIGN COMPONENT 'SUBCAT' OF STRUCTURE <ls_any_table_line> TO <lv_data>.
+      IF sy-subrc = 0 AND <lv_data> IS NOT INITIAL.
+        lv_property_tree_text = <lv_data>.
+        EXIT.
+      ENDIF.
+    ENDLOOP.
+
+    IF lv_property_tree_text IS NOT INITIAL.
+      EXIT.
+    ENDIF.
+  ENDLOOP.
+
+  IF lv_property_tree_text IS NOT INITIAL.
+    LOOP AT <lt_table_data> ASSIGNING <ls_table_line>.
+      ASSIGN COMPONENT /plmb/if_exp_c=>gc_component_key-engine_datatype OF STRUCTURE <ls_table_line> TO <lv_data>.
+      IF sy-subrc <> 0.
+        CONTINUE.
+      ENDIF.
+      IF <lv_data> <> /plmb/if_exp_c=>gc_data_type-tabledata.
+        CONTINUE.
+      ENDIF.
+      ASSIGN COMPONENT /plmb/if_exp_c=>gc_component_key-engine_node_name_desc OF STRUCTURE <ls_table_line> TO <lv_data>.
+      IF sy-subrc = 0.
+        <lv_data> = lv_property_tree_text.
+      ENDIF.
+    ENDLOOP.
+  ENDIF.
+
   LOOP AT <lt_table_data> ASSIGNING <ls_table_line>.
     ASSIGN COMPONENT /plmb/if_exp_c=>gc_component_key-engine_datatype OF STRUCTURE <ls_table_line> TO <lv_data>.
     IF sy-subrc = 0 AND <lv_data> = /plmb/if_exp_c=>gc_data_type-metadata.
@@ -80,15 +136,6 @@ METHOD process_table_data.
       ENDIF.
     ENDIF.
   ENDLOOP.
-
-  CALL METHOD /plmb/cl_spi_connector=>create_instance
-    EXPORTING
-      iv_abbid     = /plmb/if_abbid_c=>gc_spc
-    IMPORTING
-      eo_connector = lo_spi_connector_spc.
-  IF lo_spi_connector_spc IS NOT BOUND.
-    RETURN.
-  ENDIF.
 
   lo_spi_connector_spc->action(
     EXPORTING
