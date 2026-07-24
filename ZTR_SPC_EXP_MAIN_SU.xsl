@@ -867,28 +867,26 @@
     <xsl:variable name="node_rows" select="$rows[input:Cell[$g_prop_node_idx]/input:Data=$node_id]"/>
     <xsl:variable name="datarows" select="$node_rows[input:Cell[$g_prop_mt_flag_idx][input:Data[.='TABLEDATA']]]"/>
     <xsl:variable name="metarows" select="$node_rows[input:Cell[$g_prop_mt_flag_idx][input:Data[.='METADATA']]]"/>
+    <xsl:variable name="context_row" select="($datarows[1] | $metarows[1])[1]"/>
 
-    <xsl:for-each select="$datarows">
-      <xsl:variable name="datarow" select="."/>
-      <xsl:for-each select="$metarows[1]/input:Cell[position()>$g_prop_specid_idx]/input:Data">
-        <xsl:variable name="spec_id" select="."/>
-        <xsl:variable name="idx" select="position()+$g_prop_specid_idx"/>
-        <xsl:variable name="field_conf" select="$node/field[.=$spec_id][1]"/>
-        <xsl:if test="$metarows[3]/input:Cell[$idx]/input:Data = 'BF'
-                      and not($field_conf/@display='no')
-                      and (starts-with($spec_id,'ALGN_')
-                           or starts-with($spec_id,'NUTR_')
-                           or starts-with($spec_id,'DIET_')
-                           or starts-with($spec_id,'RLGCC_')
-                           or starts-with($spec_id,'GM_'))">
-          <xsl:call-template name="p_group_sheet_row">
-            <xsl:with-param name="datarow" select="$datarow"/>
-            <xsl:with-param name="metarows" select="$metarows"/>
-            <xsl:with-param name="col_idx" select="$idx"/>
-            <xsl:with-param name="spec_id" select="$spec_id"/>
-          </xsl:call-template>
-        </xsl:if>
-      </xsl:for-each>
+    <xsl:for-each select="$metarows[1]/input:Cell[position()>$g_prop_specid_idx]/input:Data">
+      <xsl:variable name="spec_id" select="."/>
+      <xsl:variable name="idx" select="position()+$g_prop_specid_idx"/>
+      <xsl:variable name="field_conf" select="$node/field[.=$spec_id][1]"/>
+      <xsl:if test="$metarows[3]/input:Cell[$idx]/input:Data = 'BF'
+                    and not($field_conf/@display='no')
+                    and (starts-with($spec_id,'ALGN_')
+                         or starts-with($spec_id,'NUTR_')
+                         or starts-with($spec_id,'DIET_')
+                         or starts-with($spec_id,'RLGCC_')
+                         or starts-with($spec_id,'GM_'))">
+        <xsl:call-template name="p_group_sheet_row">
+          <xsl:with-param name="datarow" select="$context_row"/>
+          <xsl:with-param name="metarows" select="$metarows"/>
+          <xsl:with-param name="col_idx" select="$idx"/>
+          <xsl:with-param name="spec_id" select="$spec_id"/>
+        </xsl:call-template>
+      </xsl:if>
     </xsl:for-each>
   </xsl:for-each>
 </xsl:template>
