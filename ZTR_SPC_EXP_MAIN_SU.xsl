@@ -94,7 +94,12 @@
 
   <!-- Display Data-->
   <xsl:variable name="num_of_worksheets" select="count(/input:Workbook/input:Worksheet)"/>
-  <xsl:variable name="group_rows" select="input:Workbook[1]/input:Worksheet/input:Table/input:Row[input:Cell[$g_prop_mt_flag_idx]/input:Data='TABLEDATA' or input:Cell[$g_prop_mt_flag_idx]/input:Data='METADATA']"/>
+  <xsl:variable name="specification_cells" select="input:Workbook[1]/input:Worksheet/input:Table/input:Row/input:Cell/input:Data[
+    starts-with(normalize-space(.),'ALGN_')
+    or starts-with(normalize-space(.),'NUTR_')
+    or starts-with(normalize-space(.),'DIET_')
+    or starts-with(normalize-space(.),'RLGCC_')
+    or starts-with(normalize-space(.),'GM_')]"/>
   <xsl:choose>
     <xsl:when test="$num_of_worksheets = 2"><!-- Processing of two worksheet related data -->
       <xsl:call-template name="display_spec_data">
@@ -145,15 +150,13 @@
 
 
   <xsl:call-template name="close_page"/>
-  <xsl:if test="count($group_rows) > 0">
-    <xsl:call-template name="open_page">
-      <xsl:with-param name="title" select="'Groups'"/>
-    </xsl:call-template>
-    <xsl:call-template name="display_group_sheet">
-      <xsl:with-param name="rows" select="$group_rows"/>
-    </xsl:call-template>
-    <xsl:call-template name="close_page"/>
-  </xsl:if>
+  <xsl:call-template name="open_page">
+    <xsl:with-param name="title" select="'Groups'"/>
+  </xsl:call-template>
+  <xsl:call-template name="display_group_sheet">
+    <xsl:with-param name="specification_cells" select="$specification_cells"/>
+  </xsl:call-template>
+  <xsl:call-template name="close_page"/>
   <xsl:call-template name="close_document"/>
 </xsl:template>
 
@@ -230,7 +233,7 @@
 <!-- ************************************************************************************************-->
 <!-- Display group recursively -->
 <!-- ************************************************************************************************-->
-<!-- <xsl:template name="display_group">
+<xsl:template name="display_group">
   <xsl:param name="rows"/>
   <xsl:param name="group_id"/>
   <xsl:param name="parent_title"/>
@@ -239,10 +242,10 @@
 
   <xsl:variable name="group_md" select="$general_meta/descendant::group[@id = $group_id]"/>
   <xsl:variable name="level" select="count($group_md/ancestor::group) + 1"/>
-
+<!--
   Chapter numbering might come from the meta file too. In that case each group will
   have fix numbering regardless of the display order within the raw xml.
-  <xsl:variable name="level_number" select="$group_md/@level_number"/>
+  <xsl:variable name="level_number" select="$group_md/@level_number"/>-->
   <xsl:variable name="level_number">
     <xsl:choose>
       <xsl:when test="$chapter_parent=''"><xsl:value-of select="concat($chapter_number,'.')"/></xsl:when>
@@ -252,7 +255,7 @@
   <xsl:variable name="desc" select="$group_md/@name"/>
   <xsl:variable name="num_of_fields" select="count($group_md/field)"/>
 
- <xsl:variable name="has_subgroup_data" select="'yes'"/>
+<!--  <xsl:variable name="has_subgroup_data" select="'yes'"/>-->
   <xsl:variable name="has_subgroup_data">
     <xsl:call-template name="has_subgroup_data">
       <xsl:with-param name="rows" select="$rows"/>
@@ -262,16 +265,16 @@
   </xsl:variable>
 
   <xsl:choose>
-    <xsl:when test="$has_subgroup_data='yes'">Display level and subgroup only if there is data
-      get rows for the given group
+    <xsl:when test="$has_subgroup_data='yes'"><!-- Display level and subgroup only if there is data -->
+      <!-- get rows for the given group -->
       <xsl:variable name="curr_data" select="$rows[input:Cell[$g_sdm_node_idx]/input:Data = $group_md/@node]"/>
-      get group description
+      <!-- get group description -->
 
-      Draw the heading of the current level
+      <!-- Draw the heading of the current level -->
       <xsl:if test="not($group_md/@display-header) or $group_md/@display-header='yes'">
         <xsl:choose>
           <xsl:when test="$level &gt; 2">
-            display joined columns only if parent has @header_with_specs
+            <!-- display joined columns only if parent has @header_with_specs -->
             <xsl:choose>
               <xsl:when test="count($group_md/ancestor::*[@header_with_specs = 'yes']) = 0">
                 <xsl:call-template name="empty_row_raw"/>
@@ -307,14 +310,14 @@
         </xsl:choose>
       </xsl:if>
 
-      display the fields (if there is any)
+      <!-- display the fields (if there is any) -->
       <xsl:call-template name="display_fields">
         <xsl:with-param name="rows" select="$curr_data"/>
         <xsl:with-param name="all_rows" select="$rows"/>
         <xsl:with-param name="group" select="$group_md"/>
       </xsl:call-template>
 
-      display the next level
+      <!-- display the next level -->
       <xsl:variable name="children" select="$group_md/group"/>
       <xsl:for-each select="$children">
         <xsl:variable name="child_id" select="./@id"/>
@@ -335,10 +338,9 @@
         </xsl:call-template>
       </xsl:for-each>
     </xsl:when>
-    <xsl:otherwise>No data to display</xsl:otherwise>
+    <xsl:otherwise><!-- No data to display--></xsl:otherwise>
   </xsl:choose>
 </xsl:template>
- -->
 <!-- ************************************************************************************************-->
 <!-- Display the specifications as part of the header -->
 <!-- ************************************************************************************************-->
@@ -831,7 +833,7 @@
 <!-- Display group values in a second worksheet                                                     -->
 <!-- ============================================================================================== -->
 <xsl:template name="display_group_sheet">
-  <xsl:param name="rows"/>
+  <xsl:param name="specification_cells"/>
 
   <xsl:call-template name="open_table_header"/>
   <xsl:call-template name="open_row"/>
@@ -846,93 +848,78 @@
   <xsl:call-template name="close_row"/>
   <xsl:call-template name="close_table_header"/>
 
-  <xsl:variable name="properties" select="$rows/input:Cell[$g_prop_idx]/input:Data/text()[generate-id()=generate-id(key('properties',.)[1])]"/>
-  <xsl:for-each select="$properties">
-    <xsl:variable name="prop" select="."/>
-    <xsl:call-template name="p_group_property">
-      <xsl:with-param name="rows" select="$rows[input:Cell[$g_prop_idx]/input:Data[.=$prop]]"/>
-    </xsl:call-template>
-  </xsl:for-each>
-</xsl:template>
-
-<!-- ============================================================================================== -->
-<!-- Display one group VAT                                                                          -->
-<!-- ============================================================================================== -->
-<xsl:template name="p_group_property">
-  <xsl:param name="rows"/>
-
-  <xsl:for-each select="$property_meta/node">
-    <xsl:variable name="node" select="."/>
-    <xsl:variable name="node_id" select="$node/@id"/>
-    <xsl:variable name="node_rows" select="$rows[input:Cell[$g_prop_node_idx]/input:Data=$node_id]"/>
-    <xsl:variable name="datarows" select="$node_rows[input:Cell[$g_prop_mt_flag_idx][input:Data[.='TABLEDATA']]]"/>
-    <xsl:variable name="metarows" select="$node_rows[input:Cell[$g_prop_mt_flag_idx][input:Data[.='METADATA']]]"/>
-    <xsl:variable name="context_row" select="($datarows[1] | $metarows[1])[1]"/>
-
-    <xsl:for-each select="$metarows[1]/input:Cell[position()>$g_prop_specid_idx]/input:Data">
-      <xsl:variable name="spec_id" select="."/>
-      <xsl:variable name="idx" select="position()+$g_prop_specid_idx"/>
-      <xsl:variable name="field_conf" select="$node/field[.=$spec_id][1]"/>
-      <xsl:if test="$metarows[3]/input:Cell[$idx]/input:Data = 'BF'
-                    and not($field_conf/@display='no')
-                    and (starts-with($spec_id,'ALGN_')
-                         or starts-with($spec_id,'NUTR_')
-                         or starts-with($spec_id,'DIET_')
-                         or starts-with($spec_id,'RLGCC_')
-                         or starts-with($spec_id,'GM_'))">
-        <xsl:call-template name="p_group_sheet_row">
-          <xsl:with-param name="datarow" select="$context_row"/>
-          <xsl:with-param name="metarows" select="$metarows"/>
-          <xsl:with-param name="col_idx" select="$idx"/>
-          <xsl:with-param name="spec_id" select="$spec_id"/>
-        </xsl:call-template>
-      </xsl:if>
-    </xsl:for-each>
+  <xsl:for-each select="$specification_cells">
+    <xsl:variable name="spec_id" select="normalize-space(.)"/>
+    <xsl:variable name="source_row" select="../.."/>
+    <xsl:variable name="cell_idx" select="count(../preceding-sibling::input:Cell)+1"/>
+    <xsl:variable name="metadata_row" select="$source_row/preceding-sibling::input:Row[input:Cell[$g_prop_mt_flag_idx]/input:Data='METADATA' and normalize-space(input:Cell[$g_prop_lnum_idx]/input:Data)='1'][1]"/>
+    <xsl:variable name="field_name" select="normalize-space($metadata_row/input:Cell[$cell_idx]/input:Data)"/>
+    <xsl:if test="$field_name='SUBID' and not(preceding::input:Data[normalize-space(.)=$spec_id])">
+      <xsl:call-template name="p_group_specid_row">
+        <xsl:with-param name="spec_id" select="$spec_id"/>
+        <xsl:with-param name="source_row" select="$source_row"/>
+      </xsl:call-template>
+    </xsl:if>
   </xsl:for-each>
 </xsl:template>
 
 <!-- ============================================================================================== -->
 <!-- Display one group row                                                                          -->
 <!-- ============================================================================================== -->
-<xsl:template name="p_group_sheet_row">
-  <xsl:param name="datarow"/>
-  <xsl:param name="metarows"/>
-  <xsl:param name="col_idx"/>
+<xsl:template name="p_group_specid_row">
   <xsl:param name="spec_id"/>
+  <xsl:param name="source_row"/>
+  <xsl:variable name="metadata_row" select="$source_row/preceding-sibling::input:Row[input:Cell[$g_prop_mt_flag_idx]/input:Data='METADATA' and normalize-space(input:Cell[$g_prop_lnum_idx]/input:Data)='1'][1]"/>
+  <xsl:variable name="ident1_idx">
+    <xsl:for-each select="$metadata_row/input:Cell">
+      <xsl:if test="normalize-space(input:Data)='IDENT1'">
+        <xsl:value-of select="position()"/>
+      </xsl:if>
+    </xsl:for-each>
+  </xsl:variable>
 
   <xsl:call-template name="open_row"/>
   <xsl:choose>
     <xsl:when test="starts-with($spec_id,'ALGN_')">
       <xsl:call-template name="draw_cell"><xsl:with-param name="text" select="'Allergens'"/></xsl:call-template>
+      <xsl:call-template name="draw_cell"><xsl:with-param name="text" select="$source_row/input:Cell[number(normalize-space($ident1_idx))]/input:Data"/></xsl:call-template>
+      <xsl:call-template name="draw_cell"><xsl:with-param name="text" select="$source_row/input:Cell[1]/input:Data"/></xsl:call-template>
     </xsl:when>
     <xsl:when test="starts-with($spec_id,'NUTR_')">
       <xsl:call-template name="draw_cell"><xsl:with-param name="text" select="'Nutrients'"/></xsl:call-template>
+      <xsl:call-template name="draw_cell"><xsl:with-param name="text" select="$source_row/input:Cell[number(normalize-space($ident1_idx))]/input:Data"/></xsl:call-template>
+      <xsl:call-template name="draw_cell"><xsl:with-param name="text" select="$source_row/input:Cell[1]/input:Data"/></xsl:call-template>
     </xsl:when>
     <xsl:when test="starts-with($spec_id,'DIET_')">
       <xsl:call-template name="draw_cell"><xsl:with-param name="text" select="'Diet'"/></xsl:call-template>
+      <xsl:call-template name="draw_cell"><xsl:with-param name="text" select="$source_row/input:Cell[number(normalize-space($ident1_idx))]/input:Data"/></xsl:call-template>
+      <xsl:call-template name="draw_cell"><xsl:with-param name="text" select="$source_row/input:Cell[1]/input:Data"/></xsl:call-template>
     </xsl:when>
     <xsl:when test="starts-with($spec_id,'RLGCC_')">
       <xsl:call-template name="draw_cell"><xsl:with-param name="text" select="'Religious Certificate'"/></xsl:call-template>
+      <xsl:call-template name="draw_cell"><xsl:with-param name="text" select="$source_row/input:Cell[number(normalize-space($ident1_idx))]/input:Data"/></xsl:call-template>
+      <xsl:call-template name="draw_cell"><xsl:with-param name="text" select="$source_row/input:Cell[1]/input:Data"/></xsl:call-template>
     </xsl:when>
     <xsl:when test="starts-with($spec_id,'GM_')">
       <xsl:call-template name="draw_cell"><xsl:with-param name="text" select="'Genetically Modified'"/></xsl:call-template>
+      <xsl:call-template name="draw_cell"><xsl:with-param name="text" select="$source_row/input:Cell[number(normalize-space($ident1_idx))]/input:Data"/></xsl:call-template>
+      <xsl:call-template name="draw_cell"><xsl:with-param name="text" select="$source_row/input:Cell[1]/input:Data"/></xsl:call-template>
     </xsl:when>
     <xsl:otherwise>
-      <xsl:call-template name="draw_cell"><xsl:with-param name="text" select="$datarow/input:Cell[$g_prop_desc_idx]/input:Data"/></xsl:call-template>
+      <xsl:call-template name="draw_cell"><xsl:with-param name="text" select="''"/></xsl:call-template>
+      <xsl:call-template name="draw_cell"><xsl:with-param name="text" select="''"/></xsl:call-template>
+      <xsl:call-template name="draw_cell"><xsl:with-param name="text" select="''"/></xsl:call-template>
     </xsl:otherwise>
   </xsl:choose>
-  <xsl:call-template name="draw_cell"><xsl:with-param name="text" select="$metarows[2]/input:Cell[$col_idx]/input:Data"/></xsl:call-template>
-  <xsl:call-template name="draw_cell"><xsl:with-param name="text" select="$datarow/input:Cell[$g_prop_idx]/input:Data"/></xsl:call-template>
   <xsl:call-template name="draw_cell"><xsl:with-param name="text" select="$spec_id"/></xsl:call-template>
+  <xsl:call-template name="draw_cell"><xsl:with-param name="text" select="''"/></xsl:call-template>
   <xsl:call-template name="draw_cell"><xsl:with-param name="text" select="''"/></xsl:call-template>
   <xsl:call-template name="draw_cell"><xsl:with-param name="text" select="''"/></xsl:call-template>
   <xsl:choose>
     <xsl:when test="starts-with($spec_id,'NUTR_')">
-      <xsl:call-template name="draw_cell"><xsl:with-param name="text" select="'G'"/></xsl:call-template>
-      <xsl:call-template name="draw_cell"><xsl:with-param name="text" select="'Gram'"/></xsl:call-template>
+      <xsl:call-template name="draw_cell"><xsl:with-param name="text" select="$source_row/input:Cell[33]/input:Data"/></xsl:call-template>
     </xsl:when>
     <xsl:otherwise>
-      <xsl:call-template name="draw_cell"><xsl:with-param name="text" select="''"/></xsl:call-template>
       <xsl:call-template name="draw_cell"><xsl:with-param name="text" select="''"/></xsl:call-template>
     </xsl:otherwise>
   </xsl:choose>
