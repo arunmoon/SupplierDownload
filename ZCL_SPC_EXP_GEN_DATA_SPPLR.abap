@@ -5,15 +5,127 @@ class ZCL_SPC_EXP_GEN_DATA_SPPLR definition
   create public .
 
 public section.
+  methods /PLMB/IF_EXP_GENERIC_DATA~GET_DEFINITION
+    redefinition .
+  methods /PLMB/IF_EXP_GENERIC_DATA~GET_EXPORT_DATA
+    redefinition .
 protected section.
   methods PROCESS_TABLE_DATA
     redefinition .
 private section.
+  methods ENSURE_SHOW_ALL_GROUPS
+    changing
+      !CT_ADD_INFO type /PLMB/T_EXP_ADDITIONAL_INFO .
 ENDCLASS.
 
 
 
 CLASS ZCL_SPC_EXP_GEN_DATA_SPPLR IMPLEMENTATION.
+
+
+METHOD /plmb/if_exp_generic_data~get_definition.
+
+  DATA lt_add_info TYPE /plmb/t_exp_additional_info.
+
+  lt_add_info = it_add_info.
+  me->ensure_show_all_groups(
+    CHANGING
+      ct_add_info = lt_add_info
+  ).
+
+  super->/plmb/if_exp_generic_data~get_definition(
+    EXPORTING
+      it_objects             = it_objects
+      iv_variant_id          = iv_variant_id
+      iv_selection           = iv_selection
+      it_add_info            = lt_add_info
+    IMPORTING
+      et_table_definition    = et_table_definition
+      et_table_definition_ui = et_table_definition_ui
+    CHANGING
+      ct_message             = ct_message
+      cv_severity            = cv_severity
+  ).
+
+ENDMETHOD.
+
+
+METHOD /plmb/if_exp_generic_data~get_export_data.
+
+  DATA lt_add_info TYPE /plmb/t_exp_additional_info.
+
+  lt_add_info = it_add_info.
+  me->ensure_show_all_groups(
+    CHANGING
+      ct_add_info = lt_add_info
+  ).
+
+  super->/plmb/if_exp_generic_data~get_export_data(
+    EXPORTING
+      it_objects    = it_objects
+      iv_variant_id = iv_variant_id
+      iv_selection  = iv_selection
+      it_add_info   = lt_add_info
+    IMPORTING
+      et_table_data = et_table_data
+    CHANGING
+      ct_message    = ct_message
+      cv_severity   = cv_severity
+  ).
+
+ENDMETHOD.
+
+
+METHOD ensure_show_all_groups.
+
+  DATA:
+    lt_fields          TYPE STANDARD TABLE OF fieldname,
+    lv_field           TYPE fieldname,
+    lr_show_all        TYPE REF TO data,
+    lv_show_all        TYPE char30,
+    ls_add_info        TYPE /plmb/s_exp_additional_info.
+
+  FIELD-SYMBOLS:
+    <ls_add_info> TYPE /plmb/s_exp_additional_info,
+    <lv_value>    TYPE any.
+
+  APPEND /plmi/if_spc_exp_c=>gc_additional_info-nutrient  TO lt_fields.
+  APPEND /plmi/if_spc_exp_c=>gc_additional_info-diet      TO lt_fields.
+  APPEND /plmi/if_spc_exp_c=>gc_additional_info-allergen  TO lt_fields.
+  APPEND /plmi/if_spc_exp_c=>gc_additional_info-religious TO lt_fields.
+  APPEND /plmi/if_spc_exp_c=>gc_additional_info-gen_mod   TO lt_fields.
+
+  LOOP AT lt_fields INTO lv_field.
+    UNASSIGN: <ls_add_info>,
+              <lv_value>.
+    READ TABLE ct_add_info ASSIGNING <ls_add_info> WITH KEY fname = lv_field.
+    IF sy-subrc = 0.
+      IF <ls_add_info>-value IS BOUND.
+        ASSIGN <ls_add_info>-value->* TO <lv_value>.
+      ELSE.
+        UNASSIGN <lv_value>.
+      ENDIF.
+      IF <lv_value> IS ASSIGNED AND <lv_value> IS NOT INITIAL.
+        CONTINUE.
+      ENDIF.
+    ENDIF.
+
+    lv_show_all = /plmb/if_spc_attr=>gc_actions_qua-qua_show_all.
+    CREATE DATA lr_show_all TYPE char30.
+    ASSIGN lr_show_all->* TO <lv_value>.
+    <lv_value> = lv_show_all.
+
+    IF <ls_add_info> IS ASSIGNED.
+      <ls_add_info>-value = lr_show_all.
+    ELSE.
+      CLEAR ls_add_info.
+      ls_add_info-fname = lv_field.
+      ls_add_info-value = lr_show_all.
+      APPEND ls_add_info TO ct_add_info.
+    ENDIF.
+  ENDLOOP.
+
+ENDMETHOD.
 
 
 METHOD process_table_data.
