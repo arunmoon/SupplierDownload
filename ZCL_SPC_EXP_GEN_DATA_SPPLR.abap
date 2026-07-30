@@ -99,17 +99,9 @@ METHOD ensure_show_all_groups.
     UNASSIGN: <ls_add_info>,
               <lv_value>.
     READ TABLE ct_add_info ASSIGNING <ls_add_info> WITH KEY fname = lv_field.
-    IF sy-subrc = 0.
-      IF <ls_add_info>-value IS BOUND.
-        ASSIGN <ls_add_info>-value->* TO <lv_value>.
-      ELSE.
-        UNASSIGN <lv_value>.
-      ENDIF.
-      IF <lv_value> IS ASSIGNED AND <lv_value> IS NOT INITIAL.
-        CONTINUE.
-      ENDIF.
-    ENDIF.
 
+    " Supplier export always needs the full group list on sheet 2, even when
+    " the input screen has a specific group or show-maintained value selected.
     lv_show_all = /plmb/if_spc_attr=>gc_actions_qua-qua_show_all.
     CREATE DATA lr_show_all TYPE char30.
     ASSIGN lr_show_all->* TO <lv_value>.
