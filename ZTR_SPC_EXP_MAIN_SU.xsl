@@ -94,12 +94,19 @@
 
   <!-- Display Data-->
   <xsl:variable name="num_of_worksheets" select="count(/input:Workbook/input:Worksheet)"/>
-  <xsl:variable name="specification_cells" select="input:Workbook[1]/input:Worksheet/input:Table/input:Row/input:Cell/input:Data[
-    starts-with(normalize-space(.),'ALGN_')
-    or starts-with(normalize-space(.),'NUTR_')
-    or starts-with(normalize-space(.),'DIET_')
-    or starts-with(normalize-space(.),'RLGCC_')
-    or starts-with(normalize-space(.),'GM_')]"/>
+  <!--
+    Candidate rows for the second worksheet are selected by value assignment
+    description/type and TABLEDATA. The actual SpecID is resolved from the
+    technical SUBID metadata column below, so rows from matching instance blocks
+    are skipped when they do not expose SUBID.
+  -->
+  <xsl:variable name="group_rows" select="input:Workbook[1]/input:Worksheet/input:Table/input:Row[
+    input:Cell[$g_prop_mt_flag_idx]/input:Data='TABLEDATA'
+    and ((normalize-space(input:Cell[2]/input:Data)='Allergens' and normalize-space(input:Cell[1]/input:Data)='SAP_RMS_1012_021')
+      or (normalize-space(input:Cell[2]/input:Data)='Nutrient Composition' and normalize-space(input:Cell[1]/input:Data)='SAP_RMS_1012_005')
+      or (normalize-space(input:Cell[2]/input:Data)='Diet Suitability' and normalize-space(input:Cell[1]/input:Data)='SAP_RMS_1012_010')
+      or (normalize-space(input:Cell[2]/input:Data)='Religious Certificate Compliance' and normalize-space(input:Cell[1]/input:Data)='SAP_RMS_1012_022')
+      or (normalize-space(input:Cell[2]/input:Data)='Genetically Modified Ingredients' and normalize-space(input:Cell[1]/input:Data)='SAP_RMS_1012_025'))]"/>
   <xsl:choose>
     <xsl:when test="$num_of_worksheets = 2"><!-- Processing of two worksheet related data -->
       <xsl:call-template name="display_spec_data">
@@ -154,7 +161,7 @@
     <xsl:with-param name="title" select="'Groups'"/>
   </xsl:call-template>
   <xsl:call-template name="display_group_sheet">
-    <xsl:with-param name="specification_cells" select="$specification_cells"/>
+    <xsl:with-param name="rows" select="$group_rows"/>
   </xsl:call-template>
   <xsl:call-template name="close_page"/>
   <xsl:call-template name="close_document"/>
@@ -833,7 +840,7 @@
 <!-- Display group values in a second worksheet                                                     -->
 <!-- ============================================================================================== -->
 <xsl:template name="display_group_sheet">
-  <xsl:param name="specification_cells"/>
+  <xsl:param name="rows"/>
 
   <xsl:call-template name="open_table_header"/>
   <xsl:call-template name="open_row"/>
@@ -848,13 +855,24 @@
   <xsl:call-template name="close_row"/>
   <xsl:call-template name="close_table_header"/>
 
-  <xsl:for-each select="$specification_cells">
-    <xsl:variable name="spec_id" select="normalize-space(.)"/>
-    <xsl:variable name="source_row" select="../.."/>
-    <xsl:variable name="cell_idx" select="count(../preceding-sibling::input:Cell)+1"/>
+  <xsl:for-each select="$rows">
+    <xsl:variable name="source_row" select="."/>
     <xsl:variable name="metadata_row" select="$source_row/preceding-sibling::input:Row[input:Cell[$g_prop_mt_flag_idx]/input:Data='METADATA' and normalize-space(input:Cell[$g_prop_lnum_idx]/input:Data)='1'][1]"/>
-    <xsl:variable name="field_name" select="normalize-space($metadata_row/input:Cell[$cell_idx]/input:Data)"/>
-    <xsl:if test="$field_name='SUBID' and not(preceding::input:Data[normalize-space(.)=$spec_id])">
+    <!--
+      Some matching TABLEDATA rows are instance/header rows. For example,
+      Religious Certificate Compliance/Instances carries SAP_RMS_1012_022 in
+      multiple cells, but its metadata has no SUBID. Those rows are not group
+      detail rows and must not be written to sheet 2.
+    -->
+    <xsl:variable name="subid_idx">
+      <xsl:for-each select="$metadata_row/input:Cell">
+        <xsl:if test="normalize-space(input:Data)='SUBID'">
+          <xsl:value-of select="position()"/>
+        </xsl:if>
+      </xsl:for-each>
+    </xsl:variable>
+    <xsl:variable name="spec_id" select="normalize-space($source_row/input:Cell[number(normalize-space($subid_idx))]/input:Data)"/>
+    <xsl:if test="normalize-space($subid_idx) != '' and $spec_id != ''">
       <xsl:call-template name="p_group_specid_row">
         <xsl:with-param name="spec_id" select="$spec_id"/>
         <xsl:with-param name="source_row" select="$source_row"/>
@@ -870,6 +888,8 @@
   <xsl:param name="spec_id"/>
   <xsl:param name="source_row"/>
   <xsl:variable name="metadata_row" select="$source_row/preceding-sibling::input:Row[input:Cell[$g_prop_mt_flag_idx]/input:Data='METADATA' and normalize-space(input:Cell[$g_prop_lnum_idx]/input:Data)='1'][1]"/>
+  <!-- Identifier is read by technical column name because IDENT1 can appear at
+       different physical positions for different value assignment layouts. -->
   <xsl:variable name="ident1_idx">
     <xsl:for-each select="$metadata_row/input:Cell">
       <xsl:if test="normalize-space(input:Data)='IDENT1'">
@@ -879,44 +899,15 @@
   </xsl:variable>
 
   <xsl:call-template name="open_row"/>
-  <xsl:choose>
-    <xsl:when test="starts-with($spec_id,'ALGN_')">
-      <xsl:call-template name="draw_cell"><xsl:with-param name="text" select="'Allergens'"/></xsl:call-template>
-      <xsl:call-template name="draw_cell"><xsl:with-param name="text" select="$source_row/input:Cell[number(normalize-space($ident1_idx))]/input:Data"/></xsl:call-template>
-      <xsl:call-template name="draw_cell"><xsl:with-param name="text" select="$source_row/input:Cell[1]/input:Data"/></xsl:call-template>
-    </xsl:when>
-    <xsl:when test="starts-with($spec_id,'NUTR_')">
-      <xsl:call-template name="draw_cell"><xsl:with-param name="text" select="'Nutrients'"/></xsl:call-template>
-      <xsl:call-template name="draw_cell"><xsl:with-param name="text" select="$source_row/input:Cell[number(normalize-space($ident1_idx))]/input:Data"/></xsl:call-template>
-      <xsl:call-template name="draw_cell"><xsl:with-param name="text" select="$source_row/input:Cell[1]/input:Data"/></xsl:call-template>
-    </xsl:when>
-    <xsl:when test="starts-with($spec_id,'DIET_')">
-      <xsl:call-template name="draw_cell"><xsl:with-param name="text" select="'Diet'"/></xsl:call-template>
-      <xsl:call-template name="draw_cell"><xsl:with-param name="text" select="$source_row/input:Cell[number(normalize-space($ident1_idx))]/input:Data"/></xsl:call-template>
-      <xsl:call-template name="draw_cell"><xsl:with-param name="text" select="$source_row/input:Cell[1]/input:Data"/></xsl:call-template>
-    </xsl:when>
-    <xsl:when test="starts-with($spec_id,'RLGCC_')">
-      <xsl:call-template name="draw_cell"><xsl:with-param name="text" select="'Religious Certificate'"/></xsl:call-template>
-      <xsl:call-template name="draw_cell"><xsl:with-param name="text" select="$source_row/input:Cell[number(normalize-space($ident1_idx))]/input:Data"/></xsl:call-template>
-      <xsl:call-template name="draw_cell"><xsl:with-param name="text" select="$source_row/input:Cell[1]/input:Data"/></xsl:call-template>
-    </xsl:when>
-    <xsl:when test="starts-with($spec_id,'GM_')">
-      <xsl:call-template name="draw_cell"><xsl:with-param name="text" select="'Genetically Modified'"/></xsl:call-template>
-      <xsl:call-template name="draw_cell"><xsl:with-param name="text" select="$source_row/input:Cell[number(normalize-space($ident1_idx))]/input:Data"/></xsl:call-template>
-      <xsl:call-template name="draw_cell"><xsl:with-param name="text" select="$source_row/input:Cell[1]/input:Data"/></xsl:call-template>
-    </xsl:when>
-    <xsl:otherwise>
-      <xsl:call-template name="draw_cell"><xsl:with-param name="text" select="''"/></xsl:call-template>
-      <xsl:call-template name="draw_cell"><xsl:with-param name="text" select="''"/></xsl:call-template>
-      <xsl:call-template name="draw_cell"><xsl:with-param name="text" select="''"/></xsl:call-template>
-    </xsl:otherwise>
-  </xsl:choose>
+  <xsl:call-template name="draw_cell"><xsl:with-param name="text" select="$source_row/input:Cell[2]/input:Data"/></xsl:call-template>
+  <xsl:call-template name="draw_cell"><xsl:with-param name="text" select="$source_row/input:Cell[number(normalize-space($ident1_idx))]/input:Data"/></xsl:call-template>
+  <xsl:call-template name="draw_cell"><xsl:with-param name="text" select="$source_row/input:Cell[1]/input:Data"/></xsl:call-template>
   <xsl:call-template name="draw_cell"><xsl:with-param name="text" select="$spec_id"/></xsl:call-template>
   <xsl:call-template name="draw_cell"><xsl:with-param name="text" select="''"/></xsl:call-template>
   <xsl:call-template name="draw_cell"><xsl:with-param name="text" select="''"/></xsl:call-template>
   <xsl:call-template name="draw_cell"><xsl:with-param name="text" select="''"/></xsl:call-template>
   <xsl:choose>
-    <xsl:when test="starts-with($spec_id,'NUTR_')">
+    <xsl:when test="normalize-space($source_row/input:Cell[1]/input:Data)='SAP_RMS_1012_005'">
       <xsl:call-template name="draw_cell"><xsl:with-param name="text" select="$source_row/input:Cell[33]/input:Data"/></xsl:call-template>
     </xsl:when>
     <xsl:otherwise>
