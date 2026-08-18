@@ -94,6 +94,7 @@
 
   <!-- Display Data-->
   <xsl:variable name="num_of_worksheets" select="count(/input:Workbook/input:Worksheet)"/>
+  <!-- ZSPPLR_DEBUG_20260804_002 -->
   <!--
     Candidate rows for the second worksheet are selected by value assignment
     description/type and TABLEDATA. The actual SpecID is resolved from the
@@ -102,11 +103,13 @@
   -->
   <xsl:variable name="group_rows" select="input:Workbook[1]/input:Worksheet/input:Table/input:Row[
     input:Cell[$g_prop_mt_flag_idx]/input:Data='TABLEDATA'
-    and ((normalize-space(input:Cell[2]/input:Data)='Allergens' and normalize-space(input:Cell[1]/input:Data)='SAP_RMS_1012_021')
-      or (normalize-space(input:Cell[2]/input:Data)='Nutrient Composition' and normalize-space(input:Cell[1]/input:Data)='SAP_RMS_1012_005')
-      or (normalize-space(input:Cell[2]/input:Data)='Diet Suitability' and normalize-space(input:Cell[1]/input:Data)='SAP_RMS_1012_010')
-      or (normalize-space(input:Cell[2]/input:Data)='Religious Certificate Compliance' and normalize-space(input:Cell[1]/input:Data)='SAP_RMS_1012_022')
-      or (normalize-space(input:Cell[2]/input:Data)='Genetically Modified Ingredients' and normalize-space(input:Cell[1]/input:Data)='SAP_RMS_1012_025'))]"/>
+    and ((normalize-space(input:Cell[$g_prop_node_idx]/input:Data)='ZSUPPLIER_GROUP'
+        and (normalize-space(input:Cell[1]/input:Data)='SAP_RMS_1012_021'
+          or normalize-space(input:Cell[1]/input:Data)='SAP_RMS_1012_010'
+          or normalize-space(input:Cell[1]/input:Data)='SAP_RMS_1012_022'
+          or normalize-space(input:Cell[1]/input:Data)='SAP_RMS_1012_025'))
+      or (normalize-space(input:Cell[2]/input:Data)='Nutrient Composition'
+        and normalize-space(input:Cell[1]/input:Data)='SAP_RMS_1012_005'))]"/>
   <xsl:choose>
     <xsl:when test="$num_of_worksheets = 2"><!-- Processing of two worksheet related data -->
       <xsl:call-template name="display_spec_data">
@@ -808,6 +811,24 @@
   <xsl:param name="metarows"/>
   <xsl:param name="col_idx"/>
 
+  <!-- ZSPPLR_XSL_DEBUG_20260816_003: hide group-backed rows by actual VAT id/description. -->
+  <xsl:variable name="flat_vat_id" select="normalize-space($datarow/input:Cell[$g_prop_idx]/input:Data)"/>
+  <xsl:variable name="flat_vat_desc" select="normalize-space($datarow/input:Cell[$g_prop_desc_idx]/input:Data)"/>
+  <xsl:variable name="hide_group_vat_row" select="
+    $flat_vat_id='SAP_RMS_1012_005'
+    or $flat_vat_id='SAP_RMS_1012_010'
+    or $flat_vat_id='SAP_RMS_1012_021'
+    or $flat_vat_id='SAP_RMS_1012_022'
+    or $flat_vat_id='SAP_RMS_1012_025'
+    or $flat_vat_id='SAP_EHS_1012_003'
+    or $flat_vat_desc='Standard Composition'
+    or $flat_vat_desc='Allergens'
+    or $flat_vat_desc='Nutrient Composition'
+    or $flat_vat_desc='Diet Suitability'
+    or $flat_vat_desc='Religious Certificate Compliance'
+    or $flat_vat_desc='Genetically Modified Ingredients'"/>
+
+  <xsl:if test="not($hide_group_vat_row)">
   <xsl:variable name="instance">
     <xsl:call-template name="p_get_field_value">
       <xsl:with-param name="metarows" select="$metarows"/>
@@ -815,11 +836,13 @@
       <xsl:with-param name="field_name" select="'META_INSTANCE'"/>
     </xsl:call-template>
   </xsl:variable>
+  <!-- ZSPPLR_XSL_DEBUG_20260816_004: column H uses the explicit Additional Information metadata row. -->
   <xsl:variable name="additional_info_row" select="$metarows[normalize-space(input:Cell[$g_prop_specid_idx]/input:Data)='Additional Information']"/>
   <xsl:variable name="additional_info" select="$additional_info_row/input:Cell[$col_idx]/input:Data"/>
 
   <xsl:call-template name="open_row"/>
   <xsl:call-template name="draw_cell"><xsl:with-param name="text" select="$datarow/input:Cell[$g_prop_desc_idx]/input:Data"/></xsl:call-template>
+  <!-- ZSPPLR_XSL_DEBUG_20260817_001: column B shows lt_selection-property_tree exported in the node description cell. -->
   <xsl:call-template name="draw_cell"><xsl:with-param name="text" select="$datarow/input:Cell[$g_prop_node_desc_idx]/input:Data"/></xsl:call-template>
   <xsl:call-template name="draw_cell"><xsl:with-param name="text" select="$datarow/input:Cell[$g_prop_vac_idx]/input:Data"/></xsl:call-template>
   <xsl:call-template name="draw_cell"><xsl:with-param name="text" select="$datarow/input:Cell[$g_prop_desc_idx]/input:Data"/></xsl:call-template>
@@ -834,6 +857,7 @@
     <xsl:with-param name="datatype" select="$metarows[4]/input:Cell[$col_idx]/input:Data/text()"/>
   </xsl:call-template>
   <xsl:call-template name="close_row"/>
+  </xsl:if>
 </xsl:template>
 
 <!-- ============================================================================================== -->
@@ -1085,7 +1109,13 @@
   <xsl:param name="node"/>
 
   <xsl:variable name="offset" select="$g_prop_specid_idx"/>
-  <xsl:variable name="datarows" select="$rows[input:Cell[$g_prop_mt_flag_idx][input:Data[.='TABLEDATA']]]"/>
+  <!-- ZSPPLR_XSL_DEBUG_20260813_001 hide Standard Composition from the first sheet -->
+  <xsl:variable name="datarows"
+    select="$rows[
+      input:Cell[$g_prop_mt_flag_idx][input:Data[.='TABLEDATA']]
+      and normalize-space(input:Cell[$g_prop_idx]/input:Data) != 'SAP_EHS_1012_003'
+      and normalize-space(input:Cell[$g_prop_specid_idx]/input:Data) != 'SAP_EHS_1012_003'
+    ]"/>
   <xsl:variable name="metarows" select="$rows[input:Cell[$g_prop_mt_flag_idx][input:Data[.='METADATA']]]"/>
 
   <!-- loop through the field names of meta -->
@@ -1215,7 +1245,13 @@
   <xsl:param name="node"/>  <!-- node -->
   <xsl:param name="master_column_idx"/>
 
-  <xsl:variable name="datarows" select="$rows[input:Cell[$g_prop_mt_flag_idx][input:Data[.='TABLEDATA']]]"/>
+  <!-- ZSPPLR_XSL_DEBUG_20260813_002 hide Standard Composition from the first sheet -->
+  <xsl:variable name="datarows"
+    select="$rows[
+      input:Cell[$g_prop_mt_flag_idx][input:Data[.='TABLEDATA']]
+      and normalize-space(input:Cell[$g_prop_idx]/input:Data) != 'SAP_EHS_1012_003'
+      and normalize-space(input:Cell[$g_prop_specid_idx]/input:Data) != 'SAP_EHS_1012_003'
+    ]"/>
   <xsl:variable name="metarows" select="$rows[input:Cell[$g_prop_mt_flag_idx][input:Data[.='METADATA']]]"/>
 
   <!-- display the header -->
