@@ -5,6 +5,7 @@
       xmlns:sap="http://www.sap.com/sapxsl"
       xmlns:rcp="http://www.sap.com/recipe_development"
       xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet"
+      xmlns:html="http://www.w3.org/TR/REC-html40"
       exclude-result-prefixes="rcp input"> <!-- white space separated list of namespace prefixes that should not be sent to the output -->
 <!-- Includes -->
 <xsl:include sap:name="ZTR_SPC_EXP_META_SU"/>       <!-- Meta information for displaying data -->
@@ -748,7 +749,7 @@
   <xsl:call-template name="open_table"/>
   <xsl:call-template name="open_table_header"/>
   <xsl:call-template name="open_row"/>
-  <xsl:call-template name="draw_cell"><xsl:with-param name="text" select="'Property Tree'"/><xsl:with-param name="style" select="'th13'"/></xsl:call-template>
+  <xsl:call-template name="draw_cell"><xsl:with-param name="text" select="'Property Tree'"/><xsl:with-param name="style" select="'th13'"/><xsl:with-param name="font_color" select="'#FF0000'"/></xsl:call-template>
   <xsl:call-template name="draw_cell"><xsl:with-param name="text" select="'Prop tree type'"/><xsl:with-param name="style" select="'th13'"/></xsl:call-template>
   <xsl:call-template name="draw_cell"><xsl:with-param name="text" select="'PT node'"/><xsl:with-param name="style" select="'th13'"/></xsl:call-template>
   <xsl:call-template name="draw_cell"><xsl:with-param name="text" select="'VAT'"/><xsl:with-param name="style" select="'th13'"/></xsl:call-template>
@@ -841,7 +842,7 @@
   <xsl:variable name="additional_info" select="$additional_info_row/input:Cell[$col_idx]/input:Data"/>
 
   <xsl:call-template name="open_row"/>
-  <xsl:call-template name="draw_cell"><xsl:with-param name="text" select="$datarow/input:Cell[$g_prop_desc_idx]/input:Data"/></xsl:call-template>
+  <xsl:call-template name="draw_cell"><xsl:with-param name="text" select="$datarow/input:Cell[$g_prop_desc_idx]/input:Data"/><xsl:with-param name="font_color" select="'#FF0000'"/></xsl:call-template>
   <!-- ZSPPLR_XSL_DEBUG_20260817_001: column B shows lt_selection-property_tree exported in the node description cell. -->
   <xsl:call-template name="draw_cell"><xsl:with-param name="text" select="$datarow/input:Cell[$g_prop_node_desc_idx]/input:Data"/></xsl:call-template>
   <xsl:call-template name="draw_cell"><xsl:with-param name="text" select="$datarow/input:Cell[$g_prop_vac_idx]/input:Data"/></xsl:call-template>
@@ -868,7 +869,7 @@
 
   <xsl:call-template name="open_table_header"/>
   <xsl:call-template name="open_row"/>
-  <xsl:call-template name="draw_cell"><xsl:with-param name="text" select="'VAT Description'"/><xsl:with-param name="style" select="'th13'"/></xsl:call-template>
+  <xsl:call-template name="draw_cell"><xsl:with-param name="text" select="'VAT Description'"/><xsl:with-param name="style" select="'th13'"/><xsl:with-param name="font_color" select="'#FF0000'"/></xsl:call-template>
   <xsl:call-template name="draw_cell"><xsl:with-param name="text" select="'Identifier'"/><xsl:with-param name="style" select="'th13'"/></xsl:call-template>
   <xsl:call-template name="draw_cell"><xsl:with-param name="text" select="'VAT ID'"/><xsl:with-param name="style" select="'th13'"/></xsl:call-template>
   <xsl:call-template name="draw_cell"><xsl:with-param name="text" select="'SpecID'"/><xsl:with-param name="style" select="'th13'"/></xsl:call-template>
@@ -923,7 +924,7 @@
   </xsl:variable>
 
   <xsl:call-template name="open_row"/>
-  <xsl:call-template name="draw_cell"><xsl:with-param name="text" select="$source_row/input:Cell[2]/input:Data"/></xsl:call-template>
+  <xsl:call-template name="draw_cell"><xsl:with-param name="text" select="$source_row/input:Cell[2]/input:Data"/><xsl:with-param name="font_color" select="'#FF0000'"/></xsl:call-template>
   <xsl:call-template name="draw_cell"><xsl:with-param name="text" select="$source_row/input:Cell[number(normalize-space($ident1_idx))]/input:Data"/></xsl:call-template>
   <xsl:call-template name="draw_cell"><xsl:with-param name="text" select="$source_row/input:Cell[1]/input:Data"/></xsl:call-template>
   <xsl:call-template name="draw_cell"><xsl:with-param name="text" select="$spec_id"/></xsl:call-template>
@@ -1619,17 +1620,16 @@
       <xsl:value-of select="$title"/>
       <xsl:text disable-output-escaping="yes">&quot;&gt;</xsl:text>
       <xsl:text disable-output-escaping="yes">&lt;Table&gt;</xsl:text>
-      <Column ss:Width="200"/>
-      <Column ss:Width="120"/>
-      <Column ss:Width="120"/>
-      <Column ss:Width="120"/>
-      <Column ss:Width="120"/>
-      <Column ss:Width="120"/>
-      <Column ss:Width="120"/>
-      <Column ss:Width="120"/>
-      <Column ss:Width="120"/>
-      <Column ss:Width="120"/>
-      <Column ss:Width="120"/>
+      <Column ss:AutoFitWidth="1" ss:Width="195"/>
+      <Column ss:AutoFitWidth="1" ss:Width="90"/>
+      <Column ss:AutoFitWidth="1" ss:Width="52"/>
+      <Column ss:AutoFitWidth="1" ss:Width="160"/>
+      <Column ss:AutoFitWidth="1" ss:Width="116"/>
+      <Column ss:AutoFitWidth="1" ss:Width="58"/>
+      <Column ss:AutoFitWidth="1" ss:Width="142"/>
+      <Column ss:AutoFitWidth="1" ss:Width="154"/>
+      <Column ss:AutoFitWidth="1" ss:Width="154"/>
+      <Column ss:AutoFitWidth="1" ss:Width="195"/>
     </xsl:otherwise>
    </xsl:choose>
 </xsl:template>
@@ -1735,7 +1735,7 @@
       <xsl:text disable-output-escaping="yes">&lt;tr&gt;</xsl:text>
     </xsl:when>
     <xsl:otherwise>    <!-- default is excel -->
-      <xsl:text disable-output-escaping="yes">&lt;Row xmlns="urn:schemas-microsoft-com:office:spreadsheet"&gt;</xsl:text>  <!--N2650797 long txt  &lt;Row&gt  -->
+      <xsl:text disable-output-escaping="yes">&lt;Row xmlns="urn:schemas-microsoft-com:office:spreadsheet" ss:AutoFitHeight="1"&gt;</xsl:text>  <!--N2650797 long txt  &lt;Row&gt  -->
     </xsl:otherwise>
   </xsl:choose>
 </xsl:template>
@@ -1763,6 +1763,7 @@
   <xsl:param name="datatype">S</xsl:param>
   <xsl:param name="text"/>
   <xsl:param name="colspan">0</xsl:param>
+  <xsl:param name="font_color"/>
 
   <xsl:variable name="value">
     <xsl:call-template name="format_data">
@@ -1783,17 +1784,29 @@
     <xsl:when test="$OUTPUT = 'html'">
       <xsl:choose>
         <xsl:when test="string-length($formatted_data) = 0 and $colspan = 0">
-          <td class="{$style}"><xsl:text disable-output-escaping="yes">&amp;nbsp;</xsl:text></td>
+          <td class="{$style}">
+            <xsl:if test="string-length($font_color) > 0"><xsl:attribute name="style">color:<xsl:value-of select="$font_color"/></xsl:attribute></xsl:if>
+            <xsl:text disable-output-escaping="yes">&amp;nbsp;</xsl:text>
+          </td>
         </xsl:when>
         <xsl:when test="string-length($formatted_data) = 0 and $colspan != 0">
-          <td class="{$style}" colspan="{$colspan}"><xsl:text disable-output-escaping="yes">&amp;nbsp;</xsl:text></td>
+          <td class="{$style}" colspan="{$colspan}">
+            <xsl:if test="string-length($font_color) > 0"><xsl:attribute name="style">color:<xsl:value-of select="$font_color"/></xsl:attribute></xsl:if>
+            <xsl:text disable-output-escaping="yes">&amp;nbsp;</xsl:text>
+          </td>
         </xsl:when>
         <xsl:when test="$colspan = 0">
-          <td class="{$style}"><xsl:value-of disable-output-escaping="yes" select="$formatted_data"/></td>
+          <td class="{$style}">
+            <xsl:if test="string-length($font_color) > 0"><xsl:attribute name="style">color:<xsl:value-of select="$font_color"/></xsl:attribute></xsl:if>
+            <xsl:value-of disable-output-escaping="yes" select="$formatted_data"/>
+          </td>
         </xsl:when>
         <xsl:otherwise>
           <xsl:variable name="num_of_columns" select="$colspan+1"/>
-          <td class="{$style}" colspan="{$num_of_columns}"><xsl:value-of disable-output-escaping="yes" select="$formatted_data"/></td>
+          <td class="{$style}" colspan="{$num_of_columns}">
+            <xsl:if test="string-length($font_color) > 0"><xsl:attribute name="style">color:<xsl:value-of select="$font_color"/></xsl:attribute></xsl:if>
+            <xsl:value-of disable-output-escaping="yes" select="$formatted_data"/>
+          </td>
         </xsl:otherwise>
       </xsl:choose>
     </xsl:when>
@@ -1816,12 +1829,26 @@
         </xsl:when>
         <xsl:when test="$across = 0"> <!-- not empty cell -->
           <Cell xmlns="urn:schemas-microsoft-com:office:spreadsheet" ss:StyleID="{$style}">   <!-- N2650797 long txt format excel -->
-            <ss:Data xmlns="http://www.w3.org/TR/REC-html40" ss:Type="{$celltype}"><xsl:value-of disable-output-escaping="yes" select="$formatted_data"/></ss:Data>  <!-- N2650797 long txt format excel -->
+            <ss:Data xmlns="http://www.w3.org/TR/REC-html40" ss:Type="{$celltype}">
+              <xsl:choose>
+                <xsl:when test="string-length($font_color) > 0">
+                  <html:Font html:Color="{$font_color}"><xsl:value-of disable-output-escaping="yes" select="$formatted_data"/></html:Font>
+                </xsl:when>
+                <xsl:otherwise><xsl:value-of disable-output-escaping="yes" select="$formatted_data"/></xsl:otherwise>
+              </xsl:choose>
+            </ss:Data>  <!-- N2650797 long txt format excel -->
           </Cell>
         </xsl:when>
         <xsl:otherwise> <!-- not empty merged cell -->
           <Cell xmlns="urn:schemas-microsoft-com:office:spreadsheet" ss:MergeAcross="{$across}" ss:StyleID="{$style}"> <!-- N2650797 long txt format excel -->
-            <ss:Data ss:Type="{$celltype}"><xsl:value-of disable-output-escaping="yes" select="$formatted_data"/></ss:Data> <!-- N2650797 long txt format excel -->
+            <ss:Data xmlns="http://www.w3.org/TR/REC-html40" ss:Type="{$celltype}">
+              <xsl:choose>
+                <xsl:when test="string-length($font_color) > 0">
+                  <html:Font html:Color="{$font_color}"><xsl:value-of disable-output-escaping="yes" select="$formatted_data"/></html:Font>
+                </xsl:when>
+                <xsl:otherwise><xsl:value-of disable-output-escaping="yes" select="$formatted_data"/></xsl:otherwise>
+              </xsl:choose>
+            </ss:Data> <!-- N2650797 long txt format excel -->
           </Cell>
         </xsl:otherwise>
       </xsl:choose>

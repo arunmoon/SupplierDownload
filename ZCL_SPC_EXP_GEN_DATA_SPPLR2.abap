@@ -43,19 +43,13 @@ CLASS zcl_spc_exp_gen_data_spplr2 DEFINITION
       END OF ty_s_group_export_row,
       ty_t_group_export_row TYPE STANDARD TABLE OF ty_s_group_export_row WITH DEFAULT KEY.
 
-    CONSTANTS gc_debug_marker TYPE string VALUE 'ZSPPLR_DEBUG_20260813_001'.
+    CONSTANTS gc_debug_marker TYPE string VALUE 'ZSPPLR_DEBUG_20260819_INSTANCE_001'.
     METHODS ensure_show_all_groups
       CHANGING
         !ct_add_info TYPE /plmb/t_exp_additional_info .
     METHODS append_supplier_group_defs
       CHANGING
         !ct_table_definition TYPE /plmb/t_exp_table_definition .
-    METHODS remove_first_sheet_group_defs
-      CHANGING
-        !ct_table_definition TYPE /plmb/t_exp_table_definition .
-    METHODS remove_first_sheet_group_ui
-      CHANGING
-        !ct_table_definition_ui TYPE /plmb/t_exp_tbl_definition_ui .
     METHODS append_supplier_group_rows
       IMPORTING
         !it_objects          TYPE /plmb/t_gos_internal_key
@@ -81,6 +75,9 @@ CLASS zcl_spc_exp_gen_data_spplr2 DEFINITION
         !iv_recn_group       TYPE char30
       CHANGING
         !ct_rows             TYPE ty_t_group_export_row .
+    METHODS default_export_defaults
+      CHANGING
+        !ct_rows             TYPE ty_t_group_export_row .
     METHODS get_add_info_value
       IMPORTING
         !it_add_info    TYPE /plmb/t_exp_additional_info
@@ -98,11 +95,6 @@ CLASS zcl_spc_exp_gen_data_spplr2 DEFINITION
         !is_data        TYPE any
       RETURNING
         VALUE(rv_value) TYPE abap_bool .
-    METHODS sample_components
-      IMPORTING
-        !is_data        TYPE any
-      RETURNING
-        VALUE(rv_value) TYPE string .
     METHODS deserialize_selection_xml
       IMPORTING
         !iv_selection TYPE string
@@ -164,6 +156,7 @@ CLASS zcl_spc_exp_gen_data_spplr2 IMPLEMENTATION.
       lv_genmod_grp         TYPE char30,
       lv_def_severity       TYPE /plmb/spi_msg_severity,
       lv_property_tree_text TYPE string,
+      lv_instance_field     TYPE string,
       lo_table_type         TYPE REF TO cl_abap_tabledescr,
       lr_table_data         TYPE REF TO data.
 
@@ -178,26 +171,25 @@ CLASS zcl_spc_exp_gen_data_spplr2 IMPLEMENTATION.
       <lv_component>  TYPE any.
 
     lt_add_info = it_add_info.
-    lv_allerg_grp = me->get_add_info_value(
-      it_add_info = it_add_info
-      iv_fname    = /plmi/if_spc_exp_c=>gc_additional_info-allergen
-    ).
-    lv_diet_group = me->get_add_info_value(
-      it_add_info = it_add_info
-      iv_fname    = /plmi/if_spc_exp_c=>gc_additional_info-diet
-    ).
-    lv_relig_group = me->get_add_info_value(
-      it_add_info = it_add_info
-      iv_fname    = /plmi/if_spc_exp_c=>gc_additional_info-religious
-    ).
-    lv_genmod_grp = me->get_add_info_value(
-      it_add_info = it_add_info
-      iv_fname    = /plmi/if_spc_exp_c=>gc_additional_info-gen_mod
-    ).
-
     me->ensure_show_all_groups(
       CHANGING
         ct_add_info = lt_add_info
+    ).
+    lv_allerg_grp = me->get_add_info_value(
+      it_add_info = lt_add_info
+      iv_fname    = /plmi/if_spc_exp_c=>gc_additional_info-allergen
+    ).
+    lv_diet_group = me->get_add_info_value(
+      it_add_info = lt_add_info
+      iv_fname    = /plmi/if_spc_exp_c=>gc_additional_info-diet
+    ).
+    lv_relig_group = me->get_add_info_value(
+      it_add_info = lt_add_info
+      iv_fname    = /plmi/if_spc_exp_c=>gc_additional_info-religious
+    ).
+    lv_genmod_grp = me->get_add_info_value(
+      it_add_info = lt_add_info
+      iv_fname    = /plmi/if_spc_exp_c=>gc_additional_info-gen_mod
     ).
 
     me->/plmb/if_exp_generic_data~get_definition(
@@ -248,6 +240,21 @@ CLASS zcl_spc_exp_gen_data_spplr2 IMPLEMENTATION.
         CONTINUE.
       ENDIF.
 
+      CLEAR lv_instance_field.
+      LOOP AT lt_table_definition ASSIGNING <ls_definition>
+        WHERE table_no = <ls_table_data>-table_no
+          AND new_page = abap_false
+          AND table_text IS INITIAL.
+        IF <ls_definition>-fieldname = 'INSTANCE' OR
+           <ls_definition>-fieldtext = 'Instance'.
+          lv_instance_field = <ls_definition>-fieldname.
+          EXIT.
+        ENDIF.
+      ENDLOOP.
+      IF lv_instance_field IS INITIAL.
+        lv_instance_field = 'INSTANCE'.
+      ENDIF.
+
       ASSIGN <ls_table_data>-table_data->* TO <lt_xstring>.
       IF sy-subrc = 0.
         CLEAR lt_definition.
@@ -292,6 +299,11 @@ CLASS zcl_spc_exp_gen_data_spplr2 IMPLEMENTATION.
               CONTINUE.
             ENDIF.
 
+            ASSIGN COMPONENT lv_instance_field OF STRUCTURE <ls_table_line> TO <lv_component>.
+            IF sy-subrc = 0 AND <lv_component> IS INITIAL.
+              <lv_component> = '1'.
+            ENDIF.
+
             IF lv_property_tree_text IS INITIAL.
               CONTINUE.
             ENDIF.
@@ -316,6 +328,11 @@ CLASS zcl_spc_exp_gen_data_spplr2 IMPLEMENTATION.
         ENDIF.
         IF <lv_component> <> /plmb/if_exp_c=>gc_data_type-tabledata.
           CONTINUE.
+        ENDIF.
+
+        ASSIGN COMPONENT lv_instance_field OF STRUCTURE <ls_table_line> TO <lv_component>.
+        IF sy-subrc = 0 AND <lv_component> IS INITIAL.
+          <lv_component> = '1'.
         ENDIF.
 
         IF lv_property_tree_text IS INITIAL.
@@ -411,6 +428,15 @@ CLASS zcl_spc_exp_gen_data_spplr2 IMPLEMENTATION.
                 <lv_value>.
       READ TABLE ct_add_info ASSIGNING <ls_add_info> WITH KEY fname = lv_field.
 
+      IF <ls_add_info> IS ASSIGNED.
+        IF <ls_add_info>-value IS BOUND.
+          ASSIGN <ls_add_info>-value->* TO <lv_value>.
+          IF sy-subrc = 0 AND <lv_value> IS NOT INITIAL.
+            CONTINUE.
+          ENDIF.
+        ENDIF.
+      ENDIF.
+
       lv_show_all = /plmb/if_spc_attr=>gc_actions_qua-qua_show_all.
       CREATE DATA lr_show_all TYPE char30.
       ASSIGN lr_show_all->* TO <lv_value>.
@@ -465,92 +491,6 @@ CLASS zcl_spc_exp_gen_data_spplr2 IMPLEMENTATION.
         lv_index = lv_index - 1.
       ENDWHILE.
     ENDLOOP.
-
-  ENDMETHOD.
-
-
-  METHOD remove_first_sheet_group_defs.
-
-    DATA:
-      lt_remove_table_no TYPE STANDARD TABLE OF int4,
-      lv_table_no        TYPE int4,
-      lv_index           TYPE sy-tabix.
-
-    FIELD-SYMBOLS <ls_def> TYPE /plmb/s_exp_table_definition.
-
-    LOOP AT ct_table_definition ASSIGNING <ls_def>.
-      IF me->has_first_sheet_hidden_vat( is_data = <ls_def> ) = abap_true.
-        APPEND <ls_def>-table_no TO lt_remove_table_no.
-      ENDIF.
-    ENDLOOP.
-
-    SORT lt_remove_table_no BY table_line.
-    DELETE ADJACENT DUPLICATES FROM lt_remove_table_no COMPARING table_line.
-
-    lv_index = lines( ct_table_definition ).
-    WHILE lv_index > 0.
-      READ TABLE ct_table_definition ASSIGNING <ls_def> INDEX lv_index.
-      IF sy-subrc <> 0.
-        lv_index = lv_index - 1.
-        CONTINUE.
-      ENDIF.
-
-      READ TABLE lt_remove_table_no INTO lv_table_no WITH KEY table_line = <ls_def>-table_no.
-      IF sy-subrc = 0.
-        DELETE ct_table_definition INDEX lv_index.
-      ENDIF.
-
-      lv_index = lv_index - 1.
-    ENDWHILE.
-
-  ENDMETHOD.
-
-
-  METHOD remove_first_sheet_group_ui.
-
-    DATA:
-      lt_remove_table_no TYPE STANDARD TABLE OF string,
-      lv_table_no        TYPE string,
-      lv_index           TYPE sy-tabix.
-
-    FIELD-SYMBOLS:
-      <ls_def>      TYPE any,
-      <lv_table_no> TYPE any.
-
-    LOOP AT ct_table_definition_ui ASSIGNING <ls_def>.
-      IF me->has_first_sheet_hidden_vat( is_data = <ls_def> ) = abap_true.
-        UNASSIGN <lv_table_no>.
-        ASSIGN COMPONENT 'TABLE_NO' OF STRUCTURE <ls_def> TO <lv_table_no>.
-        IF sy-subrc = 0.
-          lv_table_no = <lv_table_no>.
-          APPEND lv_table_no TO lt_remove_table_no.
-        ENDIF.
-      ENDIF.
-    ENDLOOP.
-
-    SORT lt_remove_table_no BY table_line.
-    DELETE ADJACENT DUPLICATES FROM lt_remove_table_no COMPARING table_line.
-
-    lv_index = lines( ct_table_definition_ui ).
-    WHILE lv_index > 0.
-      READ TABLE ct_table_definition_ui ASSIGNING <ls_def> INDEX lv_index.
-      IF sy-subrc <> 0.
-        lv_index = lv_index - 1.
-        CONTINUE.
-      ENDIF.
-
-      UNASSIGN <lv_table_no>.
-      ASSIGN COMPONENT 'TABLE_NO' OF STRUCTURE <ls_def> TO <lv_table_no>.
-      IF sy-subrc = 0.
-        lv_table_no = <lv_table_no>.
-        READ TABLE lt_remove_table_no TRANSPORTING NO FIELDS WITH KEY table_line = lv_table_no.
-        IF sy-subrc = 0.
-          DELETE ct_table_definition_ui INDEX lv_index.
-        ENDIF.
-      ENDIF.
-
-      lv_index = lv_index - 1.
-    ENDWHILE.
 
   ENDMETHOD.
 
@@ -953,6 +893,11 @@ CLASS zcl_spc_exp_gen_data_spplr2 IMPLEMENTATION.
       ident1       = 'CODE_MARKER'
       ident1_desc  = gc_debug_marker ) TO lt_rows.
 
+    me->default_export_defaults(
+      CHANGING
+        ct_rows = lt_rows
+    ).
+
     CREATE DATA lr_rows LIKE lt_rows.
     ASSIGN lr_rows->* TO <lt_rows>.
     IF sy-subrc <> 0.
@@ -968,6 +913,91 @@ CLASS zcl_spc_exp_gen_data_spplr2 IMPLEMENTATION.
       CHANGING
         ct_table_data = ct_table_data
     ).
+
+  ENDMETHOD.
+
+
+  METHOD default_export_defaults.
+
+    DATA:
+      lt_metadata TYPE ty_t_group_export_row,
+      lt_data     TYPE ty_t_group_export_row,
+      lt_marker   TYPE ty_t_group_export_row,
+      lt_seen  TYPE SORTED TABLE OF string WITH UNIQUE KEY table_line,
+      lv_index TYPE sy-tabix,
+      lv_line_no TYPE i,
+      lv_key   TYPE string,
+      ls_row   TYPE ty_s_group_export_row.
+
+    FIELD-SYMBOLS <ls_row> TYPE ty_s_group_export_row.
+
+    LOOP AT ct_rows ASSIGNING <ls_row>
+      WHERE datatype = /plmb/if_exp_c=>gc_data_type-tabledata.
+      IF <ls_row>-instance IS INITIAL.
+        <ls_row>-instance = '1'.
+      ENDIF.
+      IF <ls_row>-ref_qty IS INITIAL.
+        <ls_row>-ref_qty = '1'.
+      ENDIF.
+    ENDLOOP.
+
+    lv_index = 1.
+    WHILE lv_index <= lines( ct_rows ).
+      READ TABLE ct_rows ASSIGNING <ls_row> INDEX lv_index.
+      IF sy-subrc <> 0.
+        lv_index = lv_index + 1.
+        CONTINUE.
+      ENDIF.
+
+      IF <ls_row>-datatype <> /plmb/if_exp_c=>gc_data_type-tabledata OR
+         <ls_row>-ident1 = 'CODE_MARKER'.
+        lv_index = lv_index + 1.
+        CONTINUE.
+      ENDIF.
+
+      lv_key = <ls_row>-estcat_value && '|' &&
+               <ls_row>-subid && '|' &&
+               <ls_row>-ident1.
+
+      READ TABLE lt_seen TRANSPORTING NO FIELDS WITH KEY table_line = lv_key.
+      IF sy-subrc = 0.
+        DELETE ct_rows INDEX lv_index.
+        CONTINUE.
+      ENDIF.
+
+      INSERT lv_key INTO TABLE lt_seen.
+      lv_index = lv_index + 1.
+    ENDWHILE.
+
+    LOOP AT ct_rows INTO ls_row.
+      IF ls_row-datatype <> /plmb/if_exp_c=>gc_data_type-tabledata.
+        APPEND ls_row TO lt_metadata.
+      ELSEIF ls_row-ident1 = 'CODE_MARKER'.
+        APPEND ls_row TO lt_marker.
+      ELSE.
+        APPEND ls_row TO lt_data.
+      ENDIF.
+    ENDLOOP.
+
+    SORT lt_data BY estcat_desc subid ident1 ident1_desc.
+
+    CLEAR ct_rows.
+    APPEND LINES OF lt_metadata TO ct_rows.
+
+    CLEAR lv_line_no.
+    LOOP AT lt_data INTO ls_row.
+      lv_index = lines( ct_rows ) + 1.
+      lv_line_no = lv_line_no + 1.
+      ls_row-engine_key_row = lv_index.
+      ls_row-line_no = lv_line_no.
+      ls_row-sort_seq = lv_line_no.
+      APPEND ls_row TO ct_rows.
+    ENDLOOP.
+
+    LOOP AT lt_marker INTO ls_row.
+      ls_row-engine_key_row = lines( ct_rows ) + 1.
+      APPEND ls_row TO ct_rows.
+    ENDLOOP.
 
   ENDMETHOD.
 
@@ -1121,9 +1151,6 @@ CLASS zcl_spc_exp_gen_data_spplr2 IMPLEMENTATION.
       ENDIF.
 
       LOOP AT <lt_export_rows> ASSIGNING <ls_export_row>.
-        IF lv_row_sample IS INITIAL.
-          lv_row_sample = me->sample_components( is_data = <ls_export_row> ).
-        ENDIF.
 
         lv_row_vat = me->get_component_string(
           is_data      = <ls_export_row>
@@ -1575,6 +1602,10 @@ CLASS zcl_spc_exp_gen_data_spplr2 IMPLEMENTATION.
       ENDIF.
     ENDLOOP.
 
+    IF iv_recn_group IS NOT INITIAL.
+      CLEAR <lt_qual_rows>.
+    ENDIF.
+
     CLEAR ls_row.
     ls_row-engine_key_col = 1.
     ls_row-engine_key_row = 1.
@@ -1666,7 +1697,9 @@ CLASS zcl_spc_exp_gen_data_spplr2 IMPLEMENTATION.
     ls_row-ident1_desc  = 'S'.
     APPEND ls_row TO ct_rows.
 
-    IF <lt_qual_rows> IS INITIAL AND <lt_group_cfg> IS NOT INITIAL.
+    IF <lt_qual_rows> IS INITIAL AND
+       <lt_group_cfg> IS NOT INITIAL AND
+       iv_recn_group <> /plmb/if_spc_attr=>gc_actions_qua-qua_show_all.
       LOOP AT <lt_group_cfg> ASSIGNING <ls_group_cfg>.
         UNASSIGN <lt_spc_group>.
         ASSIGN COMPONENT 'SPC_GROUP' OF STRUCTURE <ls_group_cfg> TO <lt_spc_group>.
@@ -2030,49 +2063,6 @@ CLASS zcl_spc_exp_gen_data_spplr2 IMPLEMENTATION.
           RETURN.
       ENDCASE.
     ENDLOOP.
-
-  ENDMETHOD.
-
-
-  METHOD sample_components.
-
-    DATA:
-      lo_struct     TYPE REF TO cl_abap_structdescr,
-      lo_value_type TYPE REF TO cl_abap_typedescr,
-      lt_components TYPE abap_component_tab,
-      ls_component  TYPE abap_componentdescr,
-      lv_count      TYPE i,
-      lv_value      TYPE string.
-
-    FIELD-SYMBOLS <lv_value> TYPE any.
-
-    lo_struct ?= cl_abap_typedescr=>describe_by_data( is_data ).
-    lt_components = lo_struct->get_components( ).
-
-    LOOP AT lt_components INTO ls_component.
-      ASSIGN COMPONENT ls_component-name OF STRUCTURE is_data TO <lv_value>.
-      IF sy-subrc = 0 AND <lv_value> IS NOT INITIAL.
-        lo_value_type = cl_abap_typedescr=>describe_by_data( <lv_value> ).
-        IF lo_value_type->kind <> cl_abap_typedescr=>kind_elem.
-          lv_value = '<' && lo_value_type->absolute_name && '>'.
-        ELSE.
-          lv_value = <lv_value>.
-        ENDIF.
-        IF rv_value IS INITIAL.
-          rv_value = ls_component-name && '=' && lv_value.
-        ELSE.
-          rv_value = rv_value && ';' && ls_component-name && '=' && lv_value.
-        ENDIF.
-        lv_count = lv_count + 1.
-        IF lv_count >= 40.
-          EXIT.
-        ENDIF.
-      ENDIF.
-    ENDLOOP.
-
-    IF rv_value IS INITIAL.
-      rv_value = gc_debug_marker.
-    ENDIF.
 
   ENDMETHOD.
 
