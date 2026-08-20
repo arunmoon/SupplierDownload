@@ -2120,8 +2120,8 @@ CLASS zcl_spc_exp_gen_data_spplr2 IMPLEMENTATION.
     TYPES:
       BEGIN OF ty_s_allowed_value,
         atnam TYPE cabn-atnam,
-        atzhl TYPE cawn-atzhl,
-        atwrt TYPE cawn-atwrt,
+        sort_seq TYPE estpj-ord,
+        allowed_value TYPE estpp-phrtext,
       END OF ty_s_allowed_value,
       BEGIN OF ty_s_atnam,
         atnam TYPE cabn-atnam,
@@ -2257,10 +2257,40 @@ CLASS zcl_spc_exp_gen_data_spplr2 IMPLEMENTATION.
           ON cawn~atinn = cabn~atinn
         FOR ALL ENTRIES IN lt_vat_atnam
         WHERE cabn~atnam = lt_vat_atnam-atnam.
-      DELETE lt_allowed_values WHERE atwrt IS INITIAL.
-      SORT lt_allowed_values BY atnam atwrt atzhl.
-      DELETE ADJACENT DUPLICATES FROM lt_allowed_values COMPARING atnam atwrt.
-      SORT lt_allowed_values BY atnam atzhl atwrt.
+
+      SELECT tcg66~atnam
+             estpj~ord
+             estpp~phrtext
+        APPENDING TABLE lt_allowed_values
+        FROM tcg66
+        INNER JOIN estpj
+          ON estpj~recntps = tcg66~recntps
+        INNER JOIN estph
+          ON estph~recn = estpj~recntph
+        INNER JOIN estpp
+          ON estpp~recnroot = estph~recnroot
+        FOR ALL ENTRIES IN lt_vat_atnam
+        WHERE tcg66~estcat = iv_technical_estcat
+          AND tcg66~atnam = lt_vat_atnam-atnam
+          AND tcg66~recntps <> '00000000000000000000'
+          AND estpj~delflg <> 'X'
+          AND estpj~parkflg <> 'X'
+          AND estpj~valfr <= sy-datum
+          AND estpj~valto >= sy-datum
+          AND estph~delflg <> 'X'
+          AND estph~parkflg <> 'X'
+          AND estph~valfr <= sy-datum
+          AND estph~valto >= sy-datum
+          AND estpp~langu = sy-langu
+          AND estpp~delflg <> 'X'
+          AND estpp~parkflg <> 'X'
+          AND estpp~valfr <= sy-datum
+          AND estpp~valto >= sy-datum.
+
+      DELETE lt_allowed_values WHERE allowed_value IS INITIAL.
+      SORT lt_allowed_values BY atnam allowed_value sort_seq.
+      DELETE ADJACENT DUPLICATES FROM lt_allowed_values COMPARING atnam allowed_value.
+      SORT lt_allowed_values BY atnam sort_seq allowed_value.
     ENDIF.
 
     ASSIGN COMPONENT /plmb/if_exp_c=>gc_component_key-engine_key_col OF STRUCTURE <ls_metadata_line> TO <lv_data>.
@@ -2350,9 +2380,9 @@ CLASS zcl_spc_exp_gen_data_spplr2 IMPLEMENTATION.
 
       LOOP AT lt_allowed_values INTO ls_allowed_value WHERE atnam = <ls_vatcust>-atnam.
         IF lv_allowed_values IS INITIAL.
-          lv_allowed_values = ls_allowed_value-atwrt.
+          lv_allowed_values = ls_allowed_value-allowed_value.
         ELSE.
-          CONCATENATE lv_allowed_values ls_allowed_value-atwrt INTO lv_allowed_values
+          CONCATENATE lv_allowed_values ls_allowed_value-allowed_value INTO lv_allowed_values
             SEPARATED BY '||ALLOWED_VALUE||'.
         ENDIF.
       ENDLOOP.
