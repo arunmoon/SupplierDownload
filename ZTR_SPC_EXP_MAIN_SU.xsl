@@ -111,6 +111,7 @@
           or normalize-space(input:Cell[1]/input:Data)='SAP_RMS_1012_025'))
       or (normalize-space(input:Cell[2]/input:Data)='Nutrient Composition'
         and normalize-space(input:Cell[1]/input:Data)='SAP_RMS_1012_005'))]"/>
+  <xsl:variable name="property_rows" select="input:Workbook[1]/input:Worksheet/input:Table/input:Row[input:Cell[$g_prop_mt_flag_idx]/input:Data='TABLEDATA' or input:Cell[$g_prop_mt_flag_idx]/input:Data='METADATA']"/>
   <xsl:choose>
     <xsl:when test="$num_of_worksheets = 2"><!-- Processing of two worksheet related data -->
       <xsl:call-template name="display_spec_data">
@@ -118,7 +119,7 @@
       </xsl:call-template>
       <xsl:call-template name="display_property_tree">
         <xsl:with-param name="num_of_worksheets" select="$num_of_worksheets"/>
-        <xsl:with-param name="rows" select="input:Workbook[1]/input:Worksheet[2]/input:Table/input:Row[input:Cell[$g_prop_mt_flag_idx]/input:Data='TABLEDATA' or input:Cell[$g_prop_mt_flag_idx]/input:Data='METADATA']"/>
+        <xsl:with-param name="rows" select="$property_rows"/>
       </xsl:call-template>
     </xsl:when>
     <xsl:when test="$num_of_worksheets = 1"><!-- Processing of one worksheet related data -->
@@ -147,11 +148,17 @@
           <xsl:call-template name="display_spec_data">
             <xsl:with-param name="rows" select="input:Workbook[1]/input:Worksheet[1]/input:Table/input:Row"/>
           </xsl:call-template>
+          <xsl:if test="count($property_rows) > 0">
+            <xsl:call-template name="display_property_tree">
+              <xsl:with-param name="num_of_worksheets" select="$num_of_worksheets"/>
+              <xsl:with-param name="rows" select="$property_rows"/>
+            </xsl:call-template>
+          </xsl:if>
         </xsl:when>
         <xsl:otherwise>
          <xsl:call-template name="display_property_tree">
            <xsl:with-param name="num_of_worksheets" select="$num_of_worksheets"/>
-           <xsl:with-param name="rows" select="input:Workbook[1]/input:Worksheet[1]/input:Table/input:Row[input:Cell[$g_prop_mt_flag_idx]/input:Data='TABLEDATA' or input:Cell[$g_prop_mt_flag_idx]/input:Data='METADATA']"/>
+           <xsl:with-param name="rows" select="$property_rows"/>
          </xsl:call-template>
         </xsl:otherwise>
       </xsl:choose>
@@ -838,8 +845,79 @@
     </xsl:call-template>
   </xsl:variable>
   <!-- ZSPPLR_XSL_DEBUG_20260816_004: column H uses the explicit Additional Information metadata row. -->
-  <xsl:variable name="additional_info_row" select="$metarows[normalize-space(input:Cell[$g_prop_specid_idx]/input:Data)='Additional Information']"/>
-  <xsl:variable name="additional_info" select="$additional_info_row/input:Cell[$col_idx]/input:Data"/>
+  <xsl:variable name="additional_info_row" select="$metarows[
+    normalize-space(input:Cell[$g_prop_specid_idx]/input:Data)='Additional Information'
+    or normalize-space(input:Cell[$g_prop_lnum_idx]/input:Data)='5'
+  ][1]"/>
+  <xsl:variable name="additional_info_raw" select="$additional_info_row/input:Cell[$col_idx]/input:Data"/>
+  <xsl:variable name="allowed_values_separator" select="'||ALLOWED_VALUES||'"/>
+  <xsl:variable name="additional_info">
+    <xsl:choose>
+      <xsl:when test="contains($additional_info_raw, $allowed_values_separator)">
+        <xsl:value-of select="substring-before($additional_info_raw, $allowed_values_separator)"/>
+      </xsl:when>
+      <xsl:otherwise>
+        <xsl:value-of select="$additional_info_raw"/>
+      </xsl:otherwise>
+    </xsl:choose>
+  </xsl:variable>
+  <xsl:variable name="allowed_values">
+    <xsl:if test="contains($additional_info_raw, $allowed_values_separator)">
+      <xsl:value-of select="substring-after($additional_info_raw, $allowed_values_separator)"/>
+    </xsl:if>
+  </xsl:variable>
+
+  <xsl:call-template name="p_flat_property_allowed_value_tokens">
+    <xsl:with-param name="datarow" select="$datarow"/>
+    <xsl:with-param name="metarows" select="$metarows"/>
+    <xsl:with-param name="col_idx" select="$col_idx"/>
+    <xsl:with-param name="instance" select="$instance"/>
+    <xsl:with-param name="additional_info" select="$additional_info"/>
+    <xsl:with-param name="allowed_values" select="$allowed_values"/>
+  </xsl:call-template>
+  </xsl:if>
+</xsl:template>
+
+<!-- ============================================================================================== -->
+<!-- Display one flat property row for each predefined characteristic value token                    -->
+<!-- ============================================================================================== -->
+<xsl:template name="p_flat_property_allowed_value_tokens">
+  <xsl:param name="datarow"/>
+  <xsl:param name="metarows"/>
+  <xsl:param name="col_idx"/>
+  <xsl:param name="instance"/>
+  <xsl:param name="additional_info"/>
+  <xsl:param name="allowed_values"/>
+
+  <!-- Diplay allowed values in one cell. -->
+  <xsl:variable name="char_value">
+    <xsl:call-template name="string-replace-all">
+      <xsl:with-param name="text" select="$allowed_values"/>
+      <xsl:with-param name="replace" select="'||ALLOWED_VALUE||'"/>
+      <xsl:with-param name="by" select="'&#10;'"/>
+    </xsl:call-template>
+  </xsl:variable>
+
+  <xsl:call-template name="p_draw_flat_property_row">
+    <xsl:with-param name="datarow" select="$datarow"/>
+    <xsl:with-param name="metarows" select="$metarows"/>
+    <xsl:with-param name="col_idx" select="$col_idx"/>
+    <xsl:with-param name="instance" select="$instance"/>
+    <xsl:with-param name="additional_info" select="$additional_info"/>
+    <xsl:with-param name="char_value" select="$char_value"/>
+  </xsl:call-template>
+</xsl:template>
+
+<!-- ============================================================================================== -->
+<!-- Draw one characteristic row in the flat property table                                          -->
+<!-- ============================================================================================== -->
+<xsl:template name="p_draw_flat_property_row">
+  <xsl:param name="datarow"/>
+  <xsl:param name="metarows"/>
+  <xsl:param name="col_idx"/>
+  <xsl:param name="instance"/>
+  <xsl:param name="additional_info"/>
+  <xsl:param name="char_value"/>
 
   <xsl:call-template name="open_row"/>
   <xsl:call-template name="draw_cell"><xsl:with-param name="text" select="$datarow/input:Cell[$g_prop_desc_idx]/input:Data"/><xsl:with-param name="font_color" select="'#FF0000'"/></xsl:call-template>
@@ -853,12 +931,10 @@
   <xsl:call-template name="draw_cell"><xsl:with-param name="text" select="$additional_info"/></xsl:call-template>
   <xsl:call-template name="draw_cell"><xsl:with-param name="text" select="$metarows[1]/input:Cell[$col_idx]/input:Data"/></xsl:call-template>
   <xsl:call-template name="draw_cell">
-    <!--<xsl:with-param name="text" select="$datarow/input:Cell[$col_idx]/input:Data"/> -->
-    <xsl:with-param name="text" select="''"/>
-    <xsl:with-param name="datatype" select="$metarows[4]/input:Cell[$col_idx]/input:Data/text()"/>
+    <xsl:with-param name="text" select="$char_value"/>
+    <xsl:with-param name="datatype" select="'S'"/>
   </xsl:call-template>
   <xsl:call-template name="close_row"/>
-  </xsl:if>
 </xsl:template>
 
 <!-- ============================================================================================== -->

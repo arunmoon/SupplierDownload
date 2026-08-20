@@ -2117,12 +2117,27 @@ CLASS zcl_spc_exp_gen_data_spplr2 IMPLEMENTATION.
 
   METHOD process_table_data.
 
+    TYPES:
+      BEGIN OF ty_s_allowed_value,
+        atnam TYPE cabn-atnam,
+        atzhl TYPE cawn-atzhl,
+        atwrt TYPE cawn-atwrt,
+      END OF ty_s_allowed_value,
+      BEGIN OF ty_s_atnam,
+        atnam TYPE cabn-atnam,
+      END OF ty_s_atnam.
+
     DATA:
       ls_vatcust              TYPE /plmb/s_spc_val_action_vatcust,
+      ls_atnam                TYPE ty_s_atnam,
+      ls_allowed_value        TYPE ty_s_allowed_value,
+      lt_vat_atnam            TYPE STANDARD TABLE OF ty_s_atnam,
+      lt_allowed_values       TYPE STANDARD TABLE OF ty_s_allowed_value,
       lv_failed               TYPE /plmb/spi_failed_ind,
       lv_fieldname            TYPE abap_compname,
       lv_additional_info      TYPE string,
       lv_additional_info_part TYPE string,
+      lv_allowed_values       TYPE string,
       lr_metadata_line        TYPE REF TO data,
       lo_spi_connector_spc    TYPE REF TO /plmb/if_spi_appl_access,
       lv_insert_index         TYPE sy-tabix.
@@ -2175,7 +2190,9 @@ CLASS zcl_spc_exp_gen_data_spplr2 IMPLEMENTATION.
       IF sy-subrc = 0 AND <lv_data> = /plmb/if_exp_c=>gc_data_type-metadata.
         ASSIGN COMPONENT /plmb/if_exp_c=>gc_component_key-engine_key_row OF STRUCTURE <ls_table_line> TO <lv_data>.
         IF sy-subrc = 0 AND <lv_data> = 5.
-          RETURN.
+          ASSIGN <ls_table_line> TO <ls_metadata_line>.
+          CLEAR lv_insert_index.
+          EXIT.
         ENDIF.
       ENDIF.
     ENDLOOP.
@@ -2201,21 +2218,49 @@ CLASS zcl_spc_exp_gen_data_spplr2 IMPLEMENTATION.
       RETURN.
     ENDIF.
 
-    LOOP AT <lt_table_data> ASSIGNING <ls_table_line>.
-      ASSIGN COMPONENT /plmb/if_exp_c=>gc_component_key-engine_datatype OF STRUCTURE <ls_table_line> TO <lv_data>.
-      IF sy-subrc = 0 AND <lv_data> = /plmb/if_exp_c=>gc_data_type-metadata.
-        ASSIGN COMPONENT /plmb/if_exp_c=>gc_component_key-engine_key_row OF STRUCTURE <ls_table_line> TO <lv_data>.
-        IF sy-subrc = 0 AND <lv_data> = 4.
-          CREATE DATA lr_metadata_line LIKE <ls_table_line>.
-          ASSIGN lr_metadata_line->* TO <ls_metadata_line>.
-          <ls_metadata_line> = <ls_table_line>.
-          lv_insert_index = sy-tabix + 1.
-          EXIT.
+    IF <ls_metadata_line> IS NOT ASSIGNED.
+      LOOP AT <lt_table_data> ASSIGNING <ls_table_line>.
+        ASSIGN COMPONENT /plmb/if_exp_c=>gc_component_key-engine_datatype OF STRUCTURE <ls_table_line> TO <lv_data>.
+        IF sy-subrc = 0 AND <lv_data> = /plmb/if_exp_c=>gc_data_type-metadata.
+          ASSIGN COMPONENT /plmb/if_exp_c=>gc_component_key-engine_key_row OF STRUCTURE <ls_table_line> TO <lv_data>.
+          IF sy-subrc = 0 AND <lv_data> = 4.
+            CREATE DATA lr_metadata_line LIKE <ls_table_line>.
+            ASSIGN lr_metadata_line->* TO <ls_metadata_line>.
+            <ls_metadata_line> = <ls_table_line>.
+            lv_insert_index = sy-tabix + 1.
+            EXIT.
+          ENDIF.
         ENDIF.
-      ENDIF.
-    ENDLOOP.
+      ENDLOOP.
+    ENDIF.
     IF <ls_metadata_line> IS NOT ASSIGNED.
       RETURN.
+    ENDIF.
+
+    LOOP AT ls_vatcust-vat_customizing ASSIGNING <ls_vatcust>
+      WHERE estcat = iv_technical_estcat
+        AND atnam IS NOT INITIAL.
+      ls_atnam-atnam = <ls_vatcust>-atnam.
+      APPEND ls_atnam TO lt_vat_atnam.
+    ENDLOOP.
+
+    SORT lt_vat_atnam BY atnam.
+    DELETE ADJACENT DUPLICATES FROM lt_vat_atnam COMPARING atnam.
+
+    IF lt_vat_atnam IS NOT INITIAL.
+      SELECT cabn~atnam
+             cawn~atzhl
+             cawn~atwrt
+        INTO TABLE lt_allowed_values
+        FROM cabn
+        INNER JOIN cawn
+          ON cawn~atinn = cabn~atinn
+        FOR ALL ENTRIES IN lt_vat_atnam
+        WHERE cabn~atnam = lt_vat_atnam-atnam.
+      DELETE lt_allowed_values WHERE atwrt IS INITIAL.
+      SORT lt_allowed_values BY atnam atwrt atzhl.
+      DELETE ADJACENT DUPLICATES FROM lt_allowed_values COMPARING atnam atwrt.
+      SORT lt_allowed_values BY atnam atzhl atwrt.
     ENDIF.
 
     ASSIGN COMPONENT /plmb/if_exp_c=>gc_component_key-engine_key_col OF STRUCTURE <ls_metadata_line> TO <lv_data>.
@@ -2262,7 +2307,8 @@ CLASS zcl_spc_exp_gen_data_spplr2 IMPLEMENTATION.
     LOOP AT ls_vatcust-vat_customizing ASSIGNING <ls_vatcust>
       WHERE estcat = iv_technical_estcat.
       CLEAR: lv_additional_info,
-             lv_additional_info_part.
+             lv_additional_info_part,
+             lv_allowed_values.
 
       IF <ls_vatcust>-flg_is_no_single_value = abap_true.
         lv_additional_info = 'Multiple values allowed'.
@@ -2301,16 +2347,33 @@ CLASS zcl_spc_exp_gen_data_spplr2 IMPLEMENTATION.
 
       lv_fieldname = <ls_vatcust>-atnam.
       TRANSLATE lv_fieldname USING '-_'.
+
+      LOOP AT lt_allowed_values INTO ls_allowed_value WHERE atnam = <ls_vatcust>-atnam.
+        IF lv_allowed_values IS INITIAL.
+          lv_allowed_values = ls_allowed_value-atwrt.
+        ELSE.
+          CONCATENATE lv_allowed_values ls_allowed_value-atwrt INTO lv_allowed_values
+            SEPARATED BY '||ALLOWED_VALUE||'.
+        ENDIF.
+      ENDLOOP.
+
       ASSIGN COMPONENT lv_fieldname OF STRUCTURE <ls_metadata_line> TO <lv_data>.
       IF sy-subrc = 0.
-        <lv_data> = lv_additional_info.
+        IF lv_allowed_values IS INITIAL.
+          <lv_data> = lv_additional_info.
+        ELSE.
+          CONCATENATE lv_additional_info lv_allowed_values INTO <lv_data>
+            SEPARATED BY '||ALLOWED_VALUES||'.
+        ENDIF.
       ENDIF.
     ENDLOOP.
 
-    IF lv_insert_index IS INITIAL.
-      APPEND <ls_metadata_line> TO <lt_table_data>.
-    ELSE.
-      INSERT <ls_metadata_line> INTO <lt_table_data> INDEX lv_insert_index.
+    IF lr_metadata_line IS BOUND.
+      IF lv_insert_index IS INITIAL.
+        APPEND <ls_metadata_line> TO <lt_table_data>.
+      ELSE.
+        INSERT <ls_metadata_line> INTO <lt_table_data> INDEX lv_insert_index.
+      ENDIF.
     ENDIF.
 
   ENDMETHOD.
