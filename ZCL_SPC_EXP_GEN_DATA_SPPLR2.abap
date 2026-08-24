@@ -2119,9 +2119,10 @@ CLASS zcl_spc_exp_gen_data_spplr2 IMPLEMENTATION.
 
     TYPES:
       BEGIN OF ty_s_allowed_value,
-        atnam TYPE cabn-atnam,
-        sort_seq TYPE estpj-ord,
-        allowed_value TYPE estpp-phrtext,
+        atnam              TYPE cabn-atnam,
+        sort_seq           TYPE estpj-ord,
+        allowed_value      TYPE estpp-phrtext,
+        allowed_value_desc TYPE estpp-phrtext,
       END OF ty_s_allowed_value,
       BEGIN OF ty_s_atnam,
         atnam TYPE cabn-atnam,
@@ -2138,6 +2139,7 @@ CLASS zcl_spc_exp_gen_data_spplr2 IMPLEMENTATION.
       lv_additional_info      TYPE string,
       lv_additional_info_part TYPE string,
       lv_allowed_values       TYPE string,
+      lv_allowed_value_token  TYPE string,
       lr_metadata_line        TYPE REF TO data,
       lo_spi_connector_spc    TYPE REF TO /plmb/if_spi_appl_access,
       lv_insert_index         TYPE sy-tabix.
@@ -2251,15 +2253,21 @@ CLASS zcl_spc_exp_gen_data_spplr2 IMPLEMENTATION.
       SELECT cabn~atnam
              cawn~atzhl
              cawn~atwrt
+             cawnt~atwtb
         INTO TABLE lt_allowed_values
         FROM cabn
         INNER JOIN cawn
           ON cawn~atinn = cabn~atinn
+        LEFT OUTER JOIN cawnt
+          ON cawnt~atinn = cawn~atinn
+         AND cawnt~atzhl = cawn~atzhl
+         AND cawnt~spras = sy-langu
         FOR ALL ENTRIES IN lt_vat_atnam
         WHERE cabn~atnam = lt_vat_atnam-atnam.
 
       SELECT tcg66~atnam
              estpj~ord
+             estph~phrid
              estpp~phrtext
         APPENDING TABLE lt_allowed_values
         FROM tcg66
@@ -2288,8 +2296,8 @@ CLASS zcl_spc_exp_gen_data_spplr2 IMPLEMENTATION.
           AND estpp~valto >= sy-datum.
 
       DELETE lt_allowed_values WHERE allowed_value IS INITIAL.
-      SORT lt_allowed_values BY atnam allowed_value sort_seq.
-      DELETE ADJACENT DUPLICATES FROM lt_allowed_values COMPARING atnam allowed_value.
+      SORT lt_allowed_values BY atnam allowed_value allowed_value_desc sort_seq.
+      DELETE ADJACENT DUPLICATES FROM lt_allowed_values COMPARING atnam allowed_value allowed_value_desc.
       SORT lt_allowed_values BY atnam sort_seq allowed_value.
     ENDIF.
 
@@ -2379,10 +2387,17 @@ CLASS zcl_spc_exp_gen_data_spplr2 IMPLEMENTATION.
       TRANSLATE lv_fieldname USING '-_'.
 
       LOOP AT lt_allowed_values INTO ls_allowed_value WHERE atnam = <ls_vatcust>-atnam.
-        IF lv_allowed_values IS INITIAL.
-          lv_allowed_values = ls_allowed_value-allowed_value.
+        IF ls_allowed_value-allowed_value_desc IS INITIAL.
+          lv_allowed_value_token = ls_allowed_value-allowed_value.
         ELSE.
-          CONCATENATE lv_allowed_values ls_allowed_value-allowed_value INTO lv_allowed_values
+          CONCATENATE ls_allowed_value-allowed_value ls_allowed_value-allowed_value_desc
+            INTO lv_allowed_value_token
+            SEPARATED BY '|'.
+        ENDIF.
+        IF lv_allowed_values IS INITIAL.
+          lv_allowed_values = lv_allowed_value_token.
+        ELSE.
+          CONCATENATE lv_allowed_values lv_allowed_value_token INTO lv_allowed_values
             SEPARATED BY '||ALLOWED_VALUE||'.
         ENDIF.
       ENDLOOP.
