@@ -167,7 +167,9 @@
   </xsl:choose>
 
 
-  <xsl:call-template name="close_page"/>
+  <xsl:call-template name="close_data_page">
+    <xsl:with-param name="rows" select="$property_rows"/>
+  </xsl:call-template>
   <xsl:call-template name="open_page">
     <xsl:with-param name="title" select="'Groups'"/>
   </xsl:call-template>
@@ -889,7 +891,7 @@
   <xsl:param name="additional_info"/>
   <xsl:param name="allowed_values"/>
 
-  <!-- Diplay allowed values in one cell. -->
+  <!-- Display allowed values in one cell. -->
   <xsl:variable name="char_value">
     <xsl:call-template name="string-replace-all">
       <xsl:with-param name="text" select="$allowed_values"/>
@@ -905,6 +907,7 @@
     <xsl:with-param name="instance" select="$instance"/>
     <xsl:with-param name="additional_info" select="$additional_info"/>
     <xsl:with-param name="char_value" select="$char_value"/>
+    <xsl:with-param name="allowed_values" select="$allowed_values"/>
   </xsl:call-template>
 </xsl:template>
 
@@ -918,6 +921,7 @@
   <xsl:param name="instance"/>
   <xsl:param name="additional_info"/>
   <xsl:param name="char_value"/>
+  <xsl:param name="allowed_values"/>
 
   <xsl:call-template name="open_row"/>
   <xsl:call-template name="draw_cell"><xsl:with-param name="text" select="$datarow/input:Cell[$g_prop_desc_idx]/input:Data"/><xsl:with-param name="font_color" select="'#FF0000'"/></xsl:call-template>
@@ -934,7 +938,196 @@
     <xsl:with-param name="text" select="$char_value"/>
     <xsl:with-param name="datatype" select="'S'"/>
   </xsl:call-template>
+  <xsl:call-template name="p_flat_property_dropdown_source_cells">
+    <xsl:with-param name="allowed_values" select="$allowed_values"/>
+  </xsl:call-template>
   <xsl:call-template name="close_row"/>
+</xsl:template>
+
+<!-- ============================================================================================== -->
+<!-- Write dropdown source values into hidden cells after column J                                   -->
+<!-- ============================================================================================== -->
+<xsl:template name="p_flat_property_dropdown_source_cells">
+  <xsl:param name="allowed_values"/>
+
+  <xsl:variable name="allowed_values_separator" select="'||ALLOWED_VALUE||'"/>
+  <xsl:choose>
+    <xsl:when test="contains($allowed_values, $allowed_values_separator)">
+      <xsl:call-template name="draw_cell">
+        <xsl:with-param name="text" select="substring-before($allowed_values, $allowed_values_separator)"/>
+        <xsl:with-param name="datatype" select="'S'"/>
+      </xsl:call-template>
+      <xsl:call-template name="p_flat_property_dropdown_source_cells">
+        <xsl:with-param name="allowed_values" select="substring-after($allowed_values, $allowed_values_separator)"/>
+      </xsl:call-template>
+    </xsl:when>
+    <xsl:when test="normalize-space($allowed_values) != ''">
+      <xsl:call-template name="draw_cell">
+        <xsl:with-param name="text" select="$allowed_values"/>
+        <xsl:with-param name="datatype" select="'S'"/>
+      </xsl:call-template>
+    </xsl:when>
+  </xsl:choose>
+</xsl:template>
+
+<!-- ============================================================================================== -->
+<!-- Count dropdown source values                                                                    -->
+<!-- ============================================================================================== -->
+<xsl:template name="p_flat_property_allowed_value_count">
+  <xsl:param name="allowed_values"/>
+
+  <xsl:variable name="allowed_values_separator" select="'||ALLOWED_VALUE||'"/>
+  <xsl:choose>
+    <xsl:when test="normalize-space($allowed_values) = ''">0</xsl:when>
+    <xsl:when test="contains($allowed_values, $allowed_values_separator)">
+      <xsl:variable name="remaining_count">
+        <xsl:call-template name="p_flat_property_allowed_value_count">
+          <xsl:with-param name="allowed_values" select="substring-after($allowed_values, $allowed_values_separator)"/>
+        </xsl:call-template>
+      </xsl:variable>
+      <xsl:value-of select="1 + number($remaining_count)"/>
+    </xsl:when>
+    <xsl:otherwise>1</xsl:otherwise>
+  </xsl:choose>
+</xsl:template>
+
+<!-- ============================================================================================== -->
+<!-- Add Excel dropdown validations for flat characteristic-value cells                              -->
+<!-- ============================================================================================== -->
+<xsl:template name="p_flat_property_dropdown_validations">
+  <xsl:param name="rows"/>
+
+  <xsl:variable name="properties" select="$rows/input:Cell[$g_prop_idx]/input:Data/text()[generate-id()=generate-id(key('properties',.)[1])]"/>
+  <xsl:call-template name="p_flat_property_dropdown_validation_properties">
+    <xsl:with-param name="rows" select="$rows"/>
+    <xsl:with-param name="properties" select="$properties"/>
+    <xsl:with-param name="row_no" select="2"/>
+  </xsl:call-template>
+</xsl:template>
+
+<!-- ============================================================================================== -->
+<!-- Walk flat properties while carrying the emitted Excel row number                                -->
+<!-- ============================================================================================== -->
+<xsl:template name="p_flat_property_dropdown_validation_properties">
+  <xsl:param name="rows"/>
+  <xsl:param name="properties"/>
+  <xsl:param name="row_no"/>
+
+  <xsl:if test="count($properties) > 0">
+    <xsl:variable name="prop" select="$properties[1]"/>
+    <xsl:variable name="prop_rows" select="$rows[input:Cell[$g_prop_idx]/input:Data[.=$prop]]"/>
+    <xsl:variable name="node_rows" select="$prop_rows[input:Cell[$g_prop_node_idx]/input:Data='INSTANCES']"/>
+    <xsl:variable name="datarows" select="$node_rows[input:Cell[$g_prop_mt_flag_idx][input:Data[.='TABLEDATA']]]"/>
+    <xsl:variable name="metarows" select="$node_rows[input:Cell[$g_prop_mt_flag_idx][input:Data[.='METADATA']]]"/>
+    <xsl:variable name="bf_count" select="count($metarows[3]/input:Cell[position()>$g_prop_specid_idx and input:Data='BF'])"/>
+    <xsl:variable name="flat_vat_id" select="normalize-space($datarows[1]/input:Cell[$g_prop_idx]/input:Data)"/>
+    <xsl:variable name="flat_vat_desc" select="normalize-space($datarows[1]/input:Cell[$g_prop_desc_idx]/input:Data)"/>
+    <xsl:variable name="hide_group_vat_row" select="
+      $flat_vat_id='SAP_RMS_1012_005'
+      or $flat_vat_id='SAP_RMS_1012_010'
+      or $flat_vat_id='SAP_RMS_1012_021'
+      or $flat_vat_id='SAP_RMS_1012_022'
+      or $flat_vat_id='SAP_RMS_1012_025'
+      or $flat_vat_id='SAP_EHS_1012_003'
+      or $flat_vat_desc='Standard Composition'
+      or $flat_vat_desc='Allergens'
+      or $flat_vat_desc='Nutrient Composition'
+      or $flat_vat_desc='Diet Suitability'
+      or $flat_vat_desc='Religious Certificate Compliance'
+      or $flat_vat_desc='Genetically Modified Ingredients'"/>
+    <xsl:variable name="property_row_count">
+      <xsl:choose>
+        <xsl:when test="$hide_group_vat_row">0</xsl:when>
+        <xsl:otherwise><xsl:value-of select="count($datarows) * $bf_count"/></xsl:otherwise>
+      </xsl:choose>
+    </xsl:variable>
+
+    <xsl:if test="not($hide_group_vat_row)">
+      <xsl:call-template name="p_flat_property_dropdown_validation_property">
+        <xsl:with-param name="datarows" select="$datarows"/>
+        <xsl:with-param name="metarows" select="$metarows"/>
+        <xsl:with-param name="row_no" select="$row_no"/>
+      </xsl:call-template>
+    </xsl:if>
+
+    <xsl:call-template name="p_flat_property_dropdown_validation_properties">
+      <xsl:with-param name="rows" select="$rows"/>
+      <xsl:with-param name="properties" select="$properties[position()>1]"/>
+      <xsl:with-param name="row_no" select="$row_no + number($property_row_count)"/>
+    </xsl:call-template>
+  </xsl:if>
+</xsl:template>
+
+<!-- ============================================================================================== -->
+<!-- Add dropdown validations for one flat property                                                  -->
+<!-- ============================================================================================== -->
+<xsl:template name="p_flat_property_dropdown_validation_property">
+  <xsl:param name="datarows"/>
+  <xsl:param name="metarows"/>
+  <xsl:param name="row_no"/>
+
+  <xsl:variable name="bf_count" select="count($metarows[3]/input:Cell[position()>$g_prop_specid_idx and input:Data='BF'])"/>
+
+  <xsl:for-each select="$datarows">
+    <xsl:variable name="datarow_offset" select="(position() - 1) * $bf_count"/>
+    <xsl:for-each select="$metarows[1]/input:Cell[position()>$g_prop_specid_idx]/input:Data">
+      <xsl:variable name="field_name" select="."/>
+      <xsl:variable name="idx" select="position()+$g_prop_specid_idx"/>
+      <xsl:variable name="field_conf" select="$property_meta/node[@id='INSTANCES']/field[.=$field_name][1]"/>
+      <xsl:variable name="field_offset" select="count($metarows[3]/input:Cell[position()>$g_prop_specid_idx and position() &lt; $idx and input:Data='BF'])"/>
+      <xsl:if test="$metarows[3]/input:Cell[$idx]/input:Data = 'BF' and not($field_conf/@display='no')">
+        <xsl:call-template name="p_flat_property_dropdown_validation">
+          <xsl:with-param name="metarows" select="$metarows"/>
+          <xsl:with-param name="col_idx" select="$idx"/>
+          <xsl:with-param name="row_no" select="$row_no + $datarow_offset + $field_offset"/>
+        </xsl:call-template>
+      </xsl:if>
+    </xsl:for-each>
+  </xsl:for-each>
+</xsl:template>
+
+<!-- ============================================================================================== -->
+<!-- Add one dropdown validation to column J                                                        -->
+<!-- ============================================================================================== -->
+<xsl:template name="p_flat_property_dropdown_validation">
+  <xsl:param name="metarows"/>
+  <xsl:param name="col_idx"/>
+  <xsl:param name="row_no"/>
+
+  <xsl:variable name="additional_info_row" select="$metarows[
+    normalize-space(input:Cell[$g_prop_specid_idx]/input:Data)='Additional Information'
+    or normalize-space(input:Cell[$g_prop_lnum_idx]/input:Data)='5'
+  ][1]"/>
+  <xsl:variable name="additional_info_raw" select="$additional_info_row/input:Cell[$col_idx]/input:Data"/>
+  <xsl:variable name="allowed_values_separator" select="'||ALLOWED_VALUES||'"/>
+  <xsl:variable name="allowed_values">
+    <xsl:if test="contains($additional_info_raw, $allowed_values_separator)">
+      <xsl:value-of select="substring-after($additional_info_raw, $allowed_values_separator)"/>
+    </xsl:if>
+  </xsl:variable>
+  <xsl:variable name="allowed_value_count">
+    <xsl:call-template name="p_flat_property_allowed_value_count">
+      <xsl:with-param name="allowed_values" select="$allowed_values"/>
+    </xsl:call-template>
+  </xsl:variable>
+  <xsl:variable name="last_source_col" select="10 + number($allowed_value_count)"/>
+
+  <xsl:if test="number($allowed_value_count) > 0">
+    <xsl:text disable-output-escaping="yes">&lt;DataValidation xmlns="urn:schemas-microsoft-com:office:excel"&gt;</xsl:text>
+    <xsl:text disable-output-escaping="yes">&lt;Range&gt;R</xsl:text>
+    <xsl:value-of select="$row_no"/>
+    <xsl:text disable-output-escaping="yes">C10&lt;/Range&gt;</xsl:text>
+    <xsl:text disable-output-escaping="yes">&lt;Type&gt;List&lt;/Type&gt;</xsl:text>
+    <xsl:text disable-output-escaping="yes">&lt;UseBlank/&gt;</xsl:text>
+    <xsl:text disable-output-escaping="yes">&lt;CellRangeList&gt;Data!R</xsl:text>
+    <xsl:value-of select="$row_no"/>
+    <xsl:text disable-output-escaping="yes">C11:R</xsl:text>
+    <xsl:value-of select="$row_no"/>
+    <xsl:text disable-output-escaping="yes">C</xsl:text>
+    <xsl:value-of select="$last_source_col"/>
+    <xsl:text disable-output-escaping="yes">&lt;/CellRangeList&gt;</xsl:text>
+    <xsl:text disable-output-escaping="yes">&lt;/DataValidation&gt;</xsl:text>
+  </xsl:if>
 </xsl:template>
 
 <!-- ============================================================================================== -->
@@ -1706,8 +1899,25 @@
       <Column ss:AutoFitWidth="1" ss:Width="154"/>
       <Column ss:AutoFitWidth="1" ss:Width="154"/>
       <Column ss:AutoFitWidth="1" ss:Width="195"/>
+      <xsl:call-template name="hidden_dropdown_columns">
+        <xsl:with-param name="count" select="246"/>
+      </xsl:call-template>
     </xsl:otherwise>
    </xsl:choose>
+</xsl:template>
+
+<!-- .............................................................................................. -->
+<!-- Template:  hidden_dropdown_columns -->
+<!-- .............................................................................................. -->
+<xsl:template name="hidden_dropdown_columns">
+  <xsl:param name="count"/>
+
+  <xsl:if test="$count &gt; 0">
+    <Column ss:AutoFitWidth="0" ss:Hidden="1" ss:Width="0"/>
+    <xsl:call-template name="hidden_dropdown_columns">
+      <xsl:with-param name="count" select="$count - 1"/>
+    </xsl:call-template>
+  </xsl:if>
 </xsl:template>
 
 
@@ -1720,6 +1930,25 @@
     </xsl:when>
     <xsl:otherwise>    <!-- default is excel -->
       <xsl:text disable-output-escaping="yes">&lt;/Table&gt;</xsl:text>
+      <xsl:text disable-output-escaping="yes">&lt;/Worksheet&gt;</xsl:text>
+    </xsl:otherwise>
+  </xsl:choose>
+</xsl:template>
+
+<!-- .............................................................................................. -->
+<!-- Template:  close_data_page -->
+<!-- .............................................................................................. -->
+<xsl:template name="close_data_page">
+  <xsl:param name="rows"/>
+
+  <xsl:choose>
+    <xsl:when test="$OUTPUT = 'html'">
+    </xsl:when>
+    <xsl:otherwise>    <!-- default is excel -->
+      <xsl:text disable-output-escaping="yes">&lt;/Table&gt;</xsl:text>
+      <xsl:call-template name="p_flat_property_dropdown_validations">
+        <xsl:with-param name="rows" select="$rows"/>
+      </xsl:call-template>
       <xsl:text disable-output-escaping="yes">&lt;/Worksheet&gt;</xsl:text>
     </xsl:otherwise>
   </xsl:choose>
