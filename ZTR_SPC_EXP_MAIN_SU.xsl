@@ -94,21 +94,18 @@
   <xsl:variable name="num_of_worksheets" select="count(/input:Workbook/input:Worksheet)"/>
   <!-- ZSPPLR_DEBUG_20260804_002 -->
   <!--
-    Candidate rows for the second worksheet are selected by value assignment
-    description/type and TABLEDATA. The actual SpecID is resolved from the
-    technical SUBID metadata column below, so rows from matching instance blocks
-    are skipped when they do not expose SUBID.
+    Use only custom supplier-group rows to avoid repeating standard nutrients.
+    Preserve the source sort order supplied by ABAP. The actual SpecID is
+    resolved from the technical SUBID metadata column below.
   -->
   <xsl:variable name="group_rows" select="input:Workbook[1]/input:Worksheet/input:Table/input:Row[
     input:Cell[$g_prop_mt_flag_idx]/input:Data='TABLEDATA'
-    and ((normalize-space(input:Cell[$g_prop_node_idx]/input:Data)='ZSUPPLIER_GROUP'
+    and (normalize-space(input:Cell[$g_prop_node_idx]/input:Data)='ZSUPPLIER_GROUP'
         and (normalize-space(input:Cell[1]/input:Data)='SAP_RMS_1012_005'
           or normalize-space(input:Cell[1]/input:Data)='SAP_RMS_1012_021'
           or normalize-space(input:Cell[1]/input:Data)='SAP_RMS_1012_010'
           or normalize-space(input:Cell[1]/input:Data)='SAP_RMS_1012_022'
-          or normalize-space(input:Cell[1]/input:Data)='SAP_RMS_1012_025'))
-      or (normalize-space(input:Cell[2]/input:Data)='Nutrient Composition'
-        and normalize-space(input:Cell[1]/input:Data)='SAP_RMS_1012_005'))]"/>
+          or normalize-space(input:Cell[1]/input:Data)='SAP_RMS_1012_025'))]"/>
   <xsl:variable name="property_rows" select="input:Workbook[1]/input:Worksheet/input:Table/input:Row[input:Cell[$g_prop_mt_flag_idx]/input:Data='TABLEDATA' or input:Cell[$g_prop_mt_flag_idx]/input:Data='METADATA']"/>
   <xsl:variable name="hidden_dropdown_col_count">
     <xsl:call-template name="p_flat_property_max_dropdown_columns">
@@ -119,6 +116,7 @@
   <xsl:call-template name="open_page">
     <xsl:with-param name="title" select="'Data'"/>
     <xsl:with-param name="column_profile" select="'Data'"/>
+    <xsl:with-param name="rows" select="$property_rows"/>
     <xsl:with-param name="hidden_dropdown_col_count" select="number($hidden_dropdown_col_count)"/>
   </xsl:call-template>
 
@@ -183,6 +181,7 @@
   <xsl:call-template name="open_page">
     <xsl:with-param name="title" select="'Groups'"/>
     <xsl:with-param name="column_profile" select="'Groups'"/>
+    <xsl:with-param name="rows" select="$group_rows"/>
     <xsl:with-param name="hidden_dropdown_col_count" select="0"/>
   </xsl:call-template>
   <xsl:call-template name="display_group_sheet">
@@ -1612,7 +1611,13 @@
   <xsl:call-template name="draw_cell"><xsl:with-param name="text" select="''"/></xsl:call-template>
   <xsl:choose>
     <xsl:when test="normalize-space($source_row/input:Cell[1]/input:Data)='SAP_RMS_1012_005'">
-      <xsl:call-template name="draw_cell"><xsl:with-param name="text" select="$source_row/input:Cell[33]/input:Data"/></xsl:call-template>
+      <xsl:call-template name="draw_cell">
+        <xsl:with-param name="text" select="$source_row/input:Cell[
+          position() = count($metadata_row/input:Cell[
+            normalize-space(input:Data)='COMPEXP_STEXT'][1]/preceding-sibling::input:Cell) + 1
+          and $metadata_row/input:Cell[normalize-space(input:Data)='COMPEXP_STEXT']
+        ]/input:Data"/>
+      </xsl:call-template>
     </xsl:when>
     <xsl:otherwise>
       <xsl:call-template name="draw_cell"><xsl:with-param name="text" select="''"/></xsl:call-template>
@@ -2578,6 +2583,7 @@
 <xsl:template name="open_page">
   <xsl:param name="title"/>
   <xsl:param name="column_profile" select="'Data'"/>
+  <xsl:param name="rows"/>
   <xsl:param name="hidden_dropdown_col_count" select="0"/>
 
   <xsl:choose>
@@ -2590,10 +2596,14 @@
       <xsl:text disable-output-escaping="yes">&lt;Table&gt;</xsl:text>
       <xsl:choose>
         <xsl:when test="$column_profile = 'Groups'">
-          <xsl:call-template name="group_sheet_columns"/>
+          <xsl:call-template name="group_sheet_columns">
+            <xsl:with-param name="rows" select="$rows"/>
+          </xsl:call-template>
         </xsl:when>
         <xsl:otherwise>
-          <xsl:call-template name="data_sheet_columns"/>
+          <xsl:call-template name="data_sheet_columns">
+            <xsl:with-param name="rows" select="$rows"/>
+          </xsl:call-template>
         </xsl:otherwise>
       </xsl:choose>
       <xsl:call-template name="hidden_dropdown_columns">
@@ -2607,30 +2617,483 @@
 <!-- Template:  data_sheet_columns -->
 <!-- .............................................................................................. -->
 <xsl:template name="data_sheet_columns">
-  <Column ss:AutoFitWidth="0" ss:Width="195"/>
-  <Column ss:AutoFitWidth="0" ss:Width="90"/>
-  <Column ss:AutoFitWidth="0" ss:Width="160"/>
-  <Column ss:AutoFitWidth="0" ss:Width="160"/>
-  <Column ss:AutoFitWidth="0" ss:Width="116"/>
-  <Column ss:AutoFitWidth="0" ss:Width="58"/>
-  <Column ss:AutoFitWidth="0" ss:Width="142"/>
-  <Column ss:AutoFitWidth="0" ss:Width="154"/>
-  <Column ss:AutoFitWidth="0" ss:Width="154"/>
-  <Column ss:AutoFitWidth="0" ss:Width="195"/>
+  <xsl:param name="rows"/>
+
+  <xsl:call-template name="profile_columns">
+    <xsl:with-param name="rows" select="$rows"/>
+    <xsl:with-param name="count" select="10"/>
+    <xsl:with-param name="profile" select="'Data'"/>
+  </xsl:call-template>
 </xsl:template>
 
 <!-- .............................................................................................. -->
 <!-- Template:  group_sheet_columns -->
 <!-- .............................................................................................. -->
 <xsl:template name="group_sheet_columns">
-  <Column ss:AutoFitWidth="0" ss:Width="195"/>
-  <Column ss:AutoFitWidth="0" ss:Width="160"/>
-  <Column ss:AutoFitWidth="0" ss:Width="116"/>
-  <Column ss:AutoFitWidth="0" ss:Width="120"/>
-  <Column ss:AutoFitWidth="0" ss:Width="130"/>
-  <Column ss:AutoFitWidth="0" ss:Width="130"/>
-  <Column ss:AutoFitWidth="0" ss:Width="130"/>
-  <Column ss:AutoFitWidth="0" ss:Width="80"/>
+  <xsl:param name="rows"/>
+
+  <xsl:call-template name="profile_columns">
+    <xsl:with-param name="rows" select="$rows"/>
+    <xsl:with-param name="count" select="8"/>
+    <xsl:with-param name="profile" select="'Groups'"/>
+  </xsl:call-template>
+</xsl:template>
+
+<!-- .............................................................................................. -->
+<!-- Template:  profile_columns -->
+<!-- .............................................................................................. -->
+<xsl:template name="profile_columns">
+  <xsl:param name="rows"/>
+  <xsl:param name="count"/>
+  <xsl:param name="profile"/>
+  <xsl:param name="col_idx" select="1"/>
+
+  <xsl:if test="$col_idx &lt;= $count">
+    <xsl:call-template name="profile_column">
+      <xsl:with-param name="rows" select="$rows"/>
+      <xsl:with-param name="col_idx" select="$col_idx"/>
+      <xsl:with-param name="profile" select="$profile"/>
+    </xsl:call-template>
+    <xsl:call-template name="profile_columns">
+      <xsl:with-param name="rows" select="$rows"/>
+      <xsl:with-param name="count" select="$count"/>
+      <xsl:with-param name="profile" select="$profile"/>
+      <xsl:with-param name="col_idx" select="$col_idx + 1"/>
+    </xsl:call-template>
+  </xsl:if>
+</xsl:template>
+
+<!-- .............................................................................................. -->
+<!-- Template:  profile_column -->
+<!-- .............................................................................................. -->
+<xsl:template name="profile_column">
+  <xsl:param name="rows"/>
+  <xsl:param name="col_idx"/>
+  <xsl:param name="profile"/>
+  <xsl:param name="min_width" select="50"/>
+  <xsl:param name="max_width" select="300"/>
+  <xsl:param name="width_factor" select="7"/>
+  <xsl:param name="padding" select="2"/>
+
+  <xsl:variable name="max_len">
+    <xsl:choose>
+      <xsl:when test="$profile = 'Groups'">
+        <xsl:call-template name="group_column_max_length">
+          <xsl:with-param name="rows" select="$rows"/>
+          <xsl:with-param name="col_idx" select="$col_idx"/>
+        </xsl:call-template>
+      </xsl:when>
+      <xsl:otherwise>
+        <xsl:call-template name="data_column_max_length">
+          <xsl:with-param name="rows" select="$rows"/>
+          <xsl:with-param name="col_idx" select="$col_idx"/>
+        </xsl:call-template>
+      </xsl:otherwise>
+    </xsl:choose>
+  </xsl:variable>
+  <xsl:variable name="calculated_width" select="number($max_len) * $width_factor + $padding"/>
+  <xsl:variable name="width">
+    <xsl:choose>
+      <xsl:when test="$calculated_width &lt; $min_width"><xsl:value-of select="$min_width"/></xsl:when>
+      <xsl:when test="$calculated_width &gt; $max_width"><xsl:value-of select="$max_width"/></xsl:when>
+      <xsl:otherwise><xsl:value-of select="format-number($calculated_width, '0')"/></xsl:otherwise>
+    </xsl:choose>
+  </xsl:variable>
+
+  <Column ss:AutoFitWidth="0" ss:Width="{$width}"/>
+</xsl:template>
+
+<!-- .............................................................................................. -->
+<!-- Template:  data_column_max_length -->
+<!-- .............................................................................................. -->
+<xsl:template name="data_column_max_length">
+  <xsl:param name="rows"/>
+  <xsl:param name="col_idx"/>
+
+  <xsl:variable name="header">
+    <xsl:call-template name="data_column_header">
+      <xsl:with-param name="col_idx" select="$col_idx"/>
+    </xsl:call-template>
+  </xsl:variable>
+  <xsl:variable name="properties" select="$rows/input:Cell[$g_prop_idx]/input:Data/text()[generate-id()=generate-id(key('properties',.)[1])]"/>
+
+  <xsl:call-template name="data_column_max_length_properties">
+    <xsl:with-param name="rows" select="$rows"/>
+    <xsl:with-param name="properties" select="$properties"/>
+    <xsl:with-param name="col_idx" select="$col_idx"/>
+    <xsl:with-param name="max_len" select="string-length($header)"/>
+  </xsl:call-template>
+</xsl:template>
+
+<xsl:template name="data_column_header">
+  <xsl:param name="col_idx"/>
+
+  <xsl:choose>
+    <xsl:when test="$col_idx = 1">Property Tree</xsl:when>
+    <xsl:when test="$col_idx = 2">Prop tree type</xsl:when>
+    <xsl:when test="$col_idx = 3">PT node</xsl:when>
+    <xsl:when test="$col_idx = 4">VAT</xsl:when>
+    <xsl:when test="$col_idx = 5">VAT ID</xsl:when>
+    <xsl:when test="$col_idx = 6">Instance</xsl:when>
+    <xsl:when test="$col_idx = 7">Attribute</xsl:when>
+    <xsl:when test="$col_idx = 8">Additional Information</xsl:when>
+    <xsl:when test="$col_idx = 9">Characteristic Name</xsl:when>
+    <xsl:otherwise>Characteristic Value</xsl:otherwise>
+  </xsl:choose>
+</xsl:template>
+
+<xsl:template name="data_column_max_length_properties">
+  <xsl:param name="rows"/>
+  <xsl:param name="properties"/>
+  <xsl:param name="col_idx"/>
+  <xsl:param name="max_len"/>
+
+  <xsl:choose>
+    <xsl:when test="count($properties) = 0">
+      <xsl:value-of select="$max_len"/>
+    </xsl:when>
+    <xsl:otherwise>
+      <xsl:variable name="prop" select="$properties[1]"/>
+      <xsl:variable name="property_max_len">
+        <xsl:call-template name="data_column_max_length_nodes">
+          <xsl:with-param name="rows" select="$rows[input:Cell[$g_prop_idx]/input:Data[.=$prop]]"/>
+          <xsl:with-param name="nodes" select="$property_meta/node"/>
+          <xsl:with-param name="col_idx" select="$col_idx"/>
+          <xsl:with-param name="max_len" select="$max_len"/>
+        </xsl:call-template>
+      </xsl:variable>
+      <xsl:call-template name="data_column_max_length_properties">
+        <xsl:with-param name="rows" select="$rows"/>
+        <xsl:with-param name="properties" select="$properties[position() &gt; 1]"/>
+        <xsl:with-param name="col_idx" select="$col_idx"/>
+        <xsl:with-param name="max_len" select="number($property_max_len)"/>
+      </xsl:call-template>
+    </xsl:otherwise>
+  </xsl:choose>
+</xsl:template>
+
+<xsl:template name="data_column_max_length_nodes">
+  <xsl:param name="rows"/>
+  <xsl:param name="nodes"/>
+  <xsl:param name="col_idx"/>
+  <xsl:param name="max_len"/>
+
+  <xsl:choose>
+    <xsl:when test="count($nodes) = 0">
+      <xsl:value-of select="$max_len"/>
+    </xsl:when>
+    <xsl:otherwise>
+      <xsl:variable name="node" select="$nodes[1]"/>
+      <xsl:variable name="node_id" select="$node/@id"/>
+      <xsl:variable name="node_rows" select="$rows[input:Cell[$g_prop_node_idx]/input:Data=$node_id]"/>
+      <xsl:variable name="node_max_len">
+        <xsl:call-template name="data_column_max_length_datarows">
+          <xsl:with-param name="datarows" select="$node_rows[input:Cell[$g_prop_mt_flag_idx][input:Data[.='TABLEDATA']]]"/>
+          <xsl:with-param name="metarows" select="$node_rows[input:Cell[$g_prop_mt_flag_idx][input:Data[.='METADATA']]]"/>
+          <xsl:with-param name="node" select="$node"/>
+          <xsl:with-param name="col_idx" select="$col_idx"/>
+          <xsl:with-param name="max_len" select="$max_len"/>
+        </xsl:call-template>
+      </xsl:variable>
+      <xsl:call-template name="data_column_max_length_nodes">
+        <xsl:with-param name="rows" select="$rows"/>
+        <xsl:with-param name="nodes" select="$nodes[position() &gt; 1]"/>
+        <xsl:with-param name="col_idx" select="$col_idx"/>
+        <xsl:with-param name="max_len" select="number($node_max_len)"/>
+      </xsl:call-template>
+    </xsl:otherwise>
+  </xsl:choose>
+</xsl:template>
+
+<xsl:template name="data_column_max_length_datarows">
+  <xsl:param name="datarows"/>
+  <xsl:param name="metarows"/>
+  <xsl:param name="node"/>
+  <xsl:param name="col_idx"/>
+  <xsl:param name="max_len"/>
+
+  <xsl:choose>
+    <xsl:when test="count($datarows) = 0">
+      <xsl:value-of select="$max_len"/>
+    </xsl:when>
+    <xsl:otherwise>
+      <xsl:variable name="datarow" select="$datarows[1]"/>
+      <xsl:variable name="flat_vat_id" select="normalize-space($datarow/input:Cell[$g_prop_idx]/input:Data)"/>
+      <xsl:variable name="flat_vat_desc" select="normalize-space($datarow/input:Cell[$g_prop_desc_idx]/input:Data)"/>
+      <xsl:variable name="hide_group_vat_row" select="
+        $flat_vat_id='SAP_RMS_1012_005'
+        or $flat_vat_id='SAP_RMS_1012_010'
+        or $flat_vat_id='SAP_RMS_1012_021'
+        or $flat_vat_id='SAP_RMS_1012_022'
+        or $flat_vat_id='SAP_RMS_1012_025'
+        or $flat_vat_id='SAP_EHS_1012_003'
+        or $flat_vat_desc='Standard Composition'
+        or $flat_vat_desc='Allergens'
+        or $flat_vat_desc='Nutrient Composition'
+        or $flat_vat_desc='Diet Suitability'
+        or $flat_vat_desc='Religious Certificate Compliance'
+        or $flat_vat_desc='Genetically Modified Ingredients'"/>
+      <xsl:variable name="row_max_len">
+        <xsl:choose>
+          <xsl:when test="$hide_group_vat_row">
+            <xsl:value-of select="$max_len"/>
+          </xsl:when>
+          <xsl:otherwise>
+            <xsl:call-template name="data_column_max_length_fields">
+              <xsl:with-param name="fields" select="$metarows[1]/input:Cell[position() &gt; $g_prop_specid_idx]/input:Data"/>
+              <xsl:with-param name="metarows" select="$metarows"/>
+              <xsl:with-param name="node" select="$node"/>
+              <xsl:with-param name="datarow" select="$datarow"/>
+              <xsl:with-param name="col_idx" select="$col_idx"/>
+              <xsl:with-param name="max_len" select="$max_len"/>
+            </xsl:call-template>
+          </xsl:otherwise>
+        </xsl:choose>
+      </xsl:variable>
+      <xsl:call-template name="data_column_max_length_datarows">
+        <xsl:with-param name="datarows" select="$datarows[position() &gt; 1]"/>
+        <xsl:with-param name="metarows" select="$metarows"/>
+        <xsl:with-param name="node" select="$node"/>
+        <xsl:with-param name="col_idx" select="$col_idx"/>
+        <xsl:with-param name="max_len" select="number($row_max_len)"/>
+      </xsl:call-template>
+    </xsl:otherwise>
+  </xsl:choose>
+</xsl:template>
+
+<xsl:template name="data_column_max_length_fields">
+  <xsl:param name="fields"/>
+  <xsl:param name="metarows"/>
+  <xsl:param name="node"/>
+  <xsl:param name="datarow"/>
+  <xsl:param name="col_idx"/>
+  <xsl:param name="max_len"/>
+
+  <xsl:choose>
+    <xsl:when test="count($fields) = 0">
+      <xsl:value-of select="$max_len"/>
+    </xsl:when>
+    <xsl:otherwise>
+      <xsl:variable name="field_name" select="$fields[1]"/>
+      <xsl:variable name="idx" select="count($fields[1]/parent::input:Cell/preceding-sibling::input:Cell) + 1"/>
+      <xsl:variable name="field_conf" select="$node/field[.=$field_name][1]"/>
+      <xsl:variable name="is_visible_field"
+        select="$metarows[3]/input:Cell[$idx]/input:Data = 'BF'
+                and not($field_conf/@display='no')
+                and not(starts-with(normalize-space($field_name), '__'))"/>
+      <xsl:variable name="field_max_len">
+        <xsl:choose>
+          <xsl:when test="$is_visible_field">
+            <xsl:call-template name="max_value_length">
+              <xsl:with-param name="max_len" select="$max_len"/>
+              <xsl:with-param name="value">
+                <xsl:call-template name="data_column_output_value">
+                  <xsl:with-param name="datarow" select="$datarow"/>
+                  <xsl:with-param name="metarows" select="$metarows"/>
+                  <xsl:with-param name="source_col_idx" select="$idx"/>
+                  <xsl:with-param name="output_col_idx" select="$col_idx"/>
+                </xsl:call-template>
+              </xsl:with-param>
+            </xsl:call-template>
+          </xsl:when>
+          <xsl:otherwise><xsl:value-of select="$max_len"/></xsl:otherwise>
+        </xsl:choose>
+      </xsl:variable>
+      <xsl:call-template name="data_column_max_length_fields">
+        <xsl:with-param name="fields" select="$fields[position() &gt; 1]"/>
+        <xsl:with-param name="metarows" select="$metarows"/>
+        <xsl:with-param name="node" select="$node"/>
+        <xsl:with-param name="datarow" select="$datarow"/>
+        <xsl:with-param name="col_idx" select="$col_idx"/>
+        <xsl:with-param name="max_len" select="number($field_max_len)"/>
+      </xsl:call-template>
+    </xsl:otherwise>
+  </xsl:choose>
+</xsl:template>
+
+<xsl:template name="data_column_output_value">
+  <xsl:param name="datarow"/>
+  <xsl:param name="metarows"/>
+  <xsl:param name="source_col_idx"/>
+  <xsl:param name="output_col_idx"/>
+
+  <xsl:variable name="additional_info_row" select="$metarows[
+    normalize-space(input:Cell[$g_prop_specid_idx]/input:Data)='Additional Information'
+    or normalize-space(input:Cell[$g_prop_lnum_idx]/input:Data)='5'
+  ][1]"/>
+  <xsl:variable name="additional_info_raw" select="$additional_info_row/input:Cell[$source_col_idx]/input:Data"/>
+  <xsl:variable name="allowed_values_separator" select="'||ALLOWED_VALUES||'"/>
+  <xsl:variable name="allowed_values" select="substring-after($additional_info_raw, $allowed_values_separator)"/>
+  <xsl:variable name="characteristic_name_raw" select="normalize-space($metarows[1]/input:Cell[$source_col_idx]/input:Data)"/>
+
+  <xsl:choose>
+    <xsl:when test="$output_col_idx = 1"><xsl:value-of select="$datarow/input:Cell[$g_prop_desc_idx]/input:Data"/></xsl:when>
+    <xsl:when test="$output_col_idx = 2"><xsl:value-of select="$datarow/input:Cell[$g_prop_node_desc_idx]/input:Data"/></xsl:when>
+    <xsl:when test="$output_col_idx = 3"><xsl:value-of select="$datarow/input:Cell[$g_prop_vac_idx]/input:Data"/></xsl:when>
+    <xsl:when test="$output_col_idx = 4"><xsl:value-of select="$datarow/input:Cell[$g_prop_desc_idx]/input:Data"/></xsl:when>
+    <xsl:when test="$output_col_idx = 5"><xsl:value-of select="$datarow/input:Cell[$g_prop_idx]/input:Data"/></xsl:when>
+    <xsl:when test="$output_col_idx = 6">
+      <xsl:call-template name="p_get_field_value">
+        <xsl:with-param name="metarows" select="$metarows"/>
+        <xsl:with-param name="datarow" select="$datarow"/>
+        <xsl:with-param name="field_name" select="'META_INSTANCE'"/>
+      </xsl:call-template>
+    </xsl:when>
+    <xsl:when test="$output_col_idx = 7"><xsl:value-of select="$metarows[2]/input:Cell[$source_col_idx]/input:Data"/></xsl:when>
+    <xsl:when test="$output_col_idx = 8">
+      <xsl:choose>
+        <xsl:when test="contains($additional_info_raw, $allowed_values_separator)">
+          <xsl:value-of select="substring-before($additional_info_raw, $allowed_values_separator)"/>
+        </xsl:when>
+        <xsl:otherwise>
+          <xsl:value-of select="$additional_info_raw"/>
+        </xsl:otherwise>
+      </xsl:choose>
+    </xsl:when>
+    <xsl:when test="$output_col_idx = 9">
+      <xsl:choose>
+        <xsl:when test="starts-with($characteristic_name_raw, '__FTEXT_') or starts-with($characteristic_name_raw, '_FTEXT_')">
+          <xsl:value-of select="concat(normalize-space($datarow/input:Cell[$g_prop_idx]/input:Data), '_001')"/>
+        </xsl:when>
+        <xsl:otherwise>
+          <xsl:value-of select="$characteristic_name_raw"/>
+        </xsl:otherwise>
+      </xsl:choose>
+    </xsl:when>
+    <xsl:otherwise>
+      <xsl:choose>
+        <xsl:when test="contains($allowed_values, '||ALLOWED_VALUE||')">
+          <xsl:value-of select="substring-before($allowed_values, '||ALLOWED_VALUE||')"/>
+        </xsl:when>
+        <xsl:otherwise>
+          <xsl:value-of select="$allowed_values"/>
+        </xsl:otherwise>
+      </xsl:choose>
+    </xsl:otherwise>
+  </xsl:choose>
+</xsl:template>
+
+<!-- .............................................................................................. -->
+<!-- Template:  group_column_max_length -->
+<!-- .............................................................................................. -->
+<xsl:template name="group_column_max_length">
+  <xsl:param name="rows"/>
+  <xsl:param name="col_idx"/>
+
+  <xsl:variable name="header">
+    <xsl:call-template name="group_column_header">
+      <xsl:with-param name="col_idx" select="$col_idx"/>
+    </xsl:call-template>
+  </xsl:variable>
+
+  <xsl:call-template name="group_column_max_length_rows">
+    <xsl:with-param name="rows" select="$rows"/>
+    <xsl:with-param name="col_idx" select="$col_idx"/>
+    <xsl:with-param name="max_len" select="string-length($header)"/>
+  </xsl:call-template>
+</xsl:template>
+
+<xsl:template name="group_column_header">
+  <xsl:param name="col_idx"/>
+
+  <xsl:choose>
+    <xsl:when test="$col_idx = 1">VAT Description</xsl:when>
+    <xsl:when test="$col_idx = 2">Identifier</xsl:when>
+    <xsl:when test="$col_idx = 3">VAT ID</xsl:when>
+    <xsl:when test="$col_idx = 4">SpecID</xsl:when>
+    <xsl:when test="$col_idx = 5">Target Value</xsl:when>
+    <xsl:when test="$col_idx = 6">Amount (Allergen)</xsl:when>
+    <xsl:when test="$col_idx = 7">Amount UoM(PPM)</xsl:when>
+    <xsl:otherwise>UoM</xsl:otherwise>
+  </xsl:choose>
+</xsl:template>
+
+<xsl:template name="group_column_max_length_rows">
+  <xsl:param name="rows"/>
+  <xsl:param name="col_idx"/>
+  <xsl:param name="max_len"/>
+
+  <xsl:choose>
+    <xsl:when test="count($rows) = 0">
+      <xsl:value-of select="$max_len"/>
+    </xsl:when>
+    <xsl:otherwise>
+      <xsl:variable name="source_row" select="$rows[1]"/>
+      <xsl:variable name="metadata_row" select="$source_row/preceding-sibling::input:Row[input:Cell[$g_prop_mt_flag_idx]/input:Data='METADATA' and normalize-space(input:Cell[$g_prop_lnum_idx]/input:Data)='1'][1]"/>
+      <xsl:variable name="subid_idx">
+        <xsl:for-each select="$metadata_row/input:Cell">
+          <xsl:if test="normalize-space(input:Data)='SUBID'">
+            <xsl:value-of select="position()"/>
+          </xsl:if>
+        </xsl:for-each>
+      </xsl:variable>
+      <xsl:variable name="spec_id" select="normalize-space($source_row/input:Cell[number(normalize-space($subid_idx))]/input:Data)"/>
+      <xsl:variable name="row_max_len">
+        <xsl:choose>
+          <xsl:when test="normalize-space($subid_idx) != '' and $spec_id != ''">
+            <xsl:call-template name="max_value_length">
+              <xsl:with-param name="max_len" select="$max_len"/>
+              <xsl:with-param name="value">
+                <xsl:call-template name="group_column_output_value">
+                  <xsl:with-param name="source_row" select="$source_row"/>
+                  <xsl:with-param name="metadata_row" select="$metadata_row"/>
+                  <xsl:with-param name="spec_id" select="$spec_id"/>
+                  <xsl:with-param name="output_col_idx" select="$col_idx"/>
+                </xsl:call-template>
+              </xsl:with-param>
+            </xsl:call-template>
+          </xsl:when>
+          <xsl:otherwise><xsl:value-of select="$max_len"/></xsl:otherwise>
+        </xsl:choose>
+      </xsl:variable>
+      <xsl:call-template name="group_column_max_length_rows">
+        <xsl:with-param name="rows" select="$rows[position() &gt; 1]"/>
+        <xsl:with-param name="col_idx" select="$col_idx"/>
+        <xsl:with-param name="max_len" select="number($row_max_len)"/>
+      </xsl:call-template>
+    </xsl:otherwise>
+  </xsl:choose>
+</xsl:template>
+
+<xsl:template name="group_column_output_value">
+  <xsl:param name="source_row"/>
+  <xsl:param name="metadata_row"/>
+  <xsl:param name="spec_id"/>
+  <xsl:param name="output_col_idx"/>
+
+  <xsl:variable name="ident1_idx">
+    <xsl:for-each select="$metadata_row/input:Cell">
+      <xsl:if test="normalize-space(input:Data)='IDENT1'">
+        <xsl:value-of select="position()"/>
+      </xsl:if>
+    </xsl:for-each>
+  </xsl:variable>
+
+  <xsl:choose>
+    <xsl:when test="$output_col_idx = 1"><xsl:value-of select="$source_row/input:Cell[2]/input:Data"/></xsl:when>
+    <xsl:when test="$output_col_idx = 2"><xsl:value-of select="$source_row/input:Cell[number(normalize-space($ident1_idx))]/input:Data"/></xsl:when>
+    <xsl:when test="$output_col_idx = 3"><xsl:value-of select="$source_row/input:Cell[1]/input:Data"/></xsl:when>
+    <xsl:when test="$output_col_idx = 4"><xsl:value-of select="$spec_id"/></xsl:when>
+    <xsl:when test="$output_col_idx = 8 and normalize-space($source_row/input:Cell[1]/input:Data)='SAP_RMS_1012_005'">
+      <xsl:value-of select="$source_row/input:Cell[
+        position() = count($metadata_row/input:Cell[
+          normalize-space(input:Data)='COMPEXP_STEXT'][1]/preceding-sibling::input:Cell) + 1
+        and $metadata_row/input:Cell[normalize-space(input:Data)='COMPEXP_STEXT']
+      ]/input:Data"/>
+    </xsl:when>
+    <xsl:otherwise/>
+  </xsl:choose>
+</xsl:template>
+
+<xsl:template name="max_value_length">
+  <xsl:param name="max_len"/>
+  <xsl:param name="value"/>
+
+  <xsl:variable name="value_len" select="string-length(normalize-space($value))"/>
+  <xsl:choose>
+    <xsl:when test="$value_len &gt; $max_len"><xsl:value-of select="$value_len"/></xsl:when>
+    <xsl:otherwise><xsl:value-of select="$max_len"/></xsl:otherwise>
+  </xsl:choose>
 </xsl:template>
 
 <!-- .............................................................................................. -->

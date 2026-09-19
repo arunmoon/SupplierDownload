@@ -38,10 +38,9 @@ CLASS zcl_spc_exp_gen_data_spplr2 DEFINITION
         grp_subid      TYPE string,
         ident1         TYPE string,
         ident1_desc    TYPE string,
+        compexp_stext  TYPE string,
       END OF ty_s_group_export_row,
       ty_t_group_export_row TYPE STANDARD TABLE OF ty_s_group_export_row WITH DEFAULT KEY.
-
-    CONSTANTS gc_debug_marker TYPE string VALUE 'ZSPPLR_DEBUG_20260819_INSTANCE_001'.
 
     METHODS ensure_show_all_groups
       CHANGING ct_add_info TYPE /plmb/t_exp_additional_info.
@@ -133,10 +132,12 @@ CLASS zcl_spc_exp_gen_data_spplr2 IMPLEMENTATION.
     DATA lv_instance_field     TYPE string.
     DATA lo_table_type         TYPE REF TO cl_abap_tabledescr.
     DATA lr_table_data         TYPE REF TO data.
+    DATA lr_base_rows          TYPE REF TO data.
 
     FIELD-SYMBOLS <ls_definition> TYPE /plmb/s_exp_table_definition.
     FIELD-SYMBOLS <ls_table_data> TYPE /plmb/s_exp_table_data_export.
     FIELD-SYMBOLS <lt_table_data> TYPE STANDARD TABLE.
+    FIELD-SYMBOLS <lt_base_rows>  TYPE STANDARD TABLE.
     FIELD-SYMBOLS <lt_xstring>    TYPE /plmb/t_exp_xstring.
     FIELD-SYMBOLS <ls_xstring>    TYPE /plmb/s_exp_xstring.
     FIELD-SYMBOLS <ls_table_line> TYPE any.
@@ -195,8 +196,7 @@ CLASS zcl_spc_exp_gen_data_spplr2 IMPLEMENTATION.
            WHERE     table_no    = <ls_table_data>-table_no
                  AND new_page    = abap_false
                  AND table_text IS INITIAL.
-        IF    <ls_definition>-fieldname = 'INSTANCE'
-           OR <ls_definition>-fieldtext = 'Instance'.
+        IF <ls_definition>-fieldname = /plmb/if_exp_c=>gc_component_key-engine_parent_line_no.
           lv_instance_field = <ls_definition>-fieldname.
           EXIT.
         ENDIF.
@@ -293,6 +293,51 @@ CLASS zcl_spc_exp_gen_data_spplr2 IMPLEMENTATION.
     ENDLOOP.
 
     lt_base_data = et_table_data.
+    " Keep independent, decoded rows for supplier-group valuation ID lookup.
+    LOOP AT lt_base_data ASSIGNING <ls_table_data>.
+      IF <ls_table_data>-table_data IS NOT BOUND.
+        CONTINUE.
+      ENDIF.
+      ASSIGN <ls_table_data>-table_data->* TO <lt_xstring>.
+      IF sy-subrc = 0.
+        CLEAR lt_definition.
+        LOOP AT lt_table_definition ASSIGNING <ls_definition>
+             WHERE table_no = <ls_table_data>-table_no
+               AND new_page = abap_false
+               AND table_text IS INITIAL.
+          APPEND <ls_definition> TO lt_definition.
+        ENDLOOP.
+        IF lt_definition IS INITIAL.
+          CONTINUE.
+        ENDIF.
+        CLEAR lo_table_type.
+        /plmb/cl_exp_tools=>create_struct_and_table_type(
+          EXPORTING it_definition = lt_definition
+          IMPORTING eo_table_type = lo_table_type ).
+        IF lo_table_type IS NOT BOUND.
+          CONTINUE.
+        ENDIF.
+        CREATE DATA lr_base_rows TYPE HANDLE lo_table_type.
+        ASSIGN lr_base_rows->* TO <lt_base_rows>.
+        CREATE DATA lr_table_data TYPE HANDLE lo_table_type.
+        ASSIGN lr_table_data->* TO <lt_table_data>.
+        LOOP AT <lt_xstring> ASSIGNING <ls_xstring>.
+          CLEAR <lt_table_data>.
+          IMPORT xstring = <lt_table_data>
+                 FROM DATA BUFFER <ls_xstring>-xstring.
+          APPEND LINES OF <lt_table_data> TO <lt_base_rows>.
+        ENDLOOP.
+      ELSE.
+        ASSIGN <ls_table_data>-table_data->* TO <lt_table_data>.
+        IF sy-subrc <> 0.
+          CONTINUE.
+        ENDIF.
+        CREATE DATA lr_base_rows LIKE <lt_table_data>.
+        ASSIGN lr_base_rows->* TO <lt_base_rows>.
+        <lt_base_rows> = <lt_table_data>.
+      ENDIF.
+      <ls_table_data>-table_data = lr_base_rows.
+    ENDLOOP.
     remove_first_sheet_group_rows( CHANGING ct_table_data = et_table_data ).
 
     append_supplier_group_rows( EXPORTING it_objects          = it_objects
@@ -663,6 +708,15 @@ CLASS zcl_spc_exp_gen_data_spplr2 IMPLEMENTATION.
       ls_def-fieldtext      = 'Identifier Description'.
       ls_def-fieldtype_name = /plmb/if_exp_c=>gc_component_key_type-engine_string.
       APPEND ls_def TO ct_table_definition.
+
+      CLEAR ls_def.
+      ls_def-table_no       = lv_table_no.
+      ls_def-nodedisplay    = abap_true.
+      ls_def-rowkey         = abap_true.
+      ls_def-fieldname      = 'COMPEXP_STEXT'.
+      ls_def-fieldtext      = 'UoM'.
+      ls_def-fieldtype_name = /plmb/if_exp_c=>gc_component_key_type-engine_string.
+      APPEND ls_def TO ct_table_definition.
     ENDDO.
   ENDMETHOD.
 
@@ -707,7 +761,8 @@ CLASS zcl_spc_exp_gen_data_spplr2 IMPLEMENTATION.
                                           subid          = 'SUBID'
                                           grp_subid      = 'GRP_SUBID'
                                           ident1         = 'IDENT1'
-                                          ident1_desc    = 'IDENT1_DESC' ) TO lt_rows.
+                                          ident1_desc    = 'IDENT1_DESC'
+                                          compexp_stext  = 'COMPEXP_STEXT' ) TO lt_rows.
       APPEND VALUE ty_s_group_export_row( engine_key_col = 1
                                           engine_key_row = 2
                                           estcat         = iv_technical_estcat
@@ -725,7 +780,8 @@ CLASS zcl_spc_exp_gen_data_spplr2 IMPLEMENTATION.
                                           subid          = 'Specification'
                                           grp_subid      = 'Group'
                                           ident1         = 'Identifier'
-                                          ident1_desc    = 'Identifier Description' ) TO lt_rows.
+                                          ident1_desc    = 'Identifier Description'
+                                          compexp_stext  = 'UoM' ) TO lt_rows.
       APPEND VALUE ty_s_group_export_row( engine_key_col = 1
                                           engine_key_row = 3
                                           estcat         = iv_technical_estcat
@@ -743,7 +799,8 @@ CLASS zcl_spc_exp_gen_data_spplr2 IMPLEMENTATION.
                                           subid          = 'BF'
                                           grp_subid      = 'BF'
                                           ident1         = 'BF'
-                                          ident1_desc    = 'BF' ) TO lt_rows.
+                                          ident1_desc    = 'BF'
+                                          compexp_stext  = 'BF' ) TO lt_rows.
       APPEND VALUE ty_s_group_export_row( engine_key_col = 1
                                           engine_key_row = 4
                                           estcat         = iv_technical_estcat
@@ -761,23 +818,8 @@ CLASS zcl_spc_exp_gen_data_spplr2 IMPLEMENTATION.
                                           subid          = 'S'
                                           grp_subid      = 'S'
                                           ident1         = 'S'
-                                          ident1_desc    = 'S' ) TO lt_rows.
-      APPEND VALUE ty_s_group_export_row( engine_key_col = 1
-                                          engine_key_row = 5
-                                          estcat         = iv_technical_estcat
-                                          estcat_desc    = iv_description
-                                          esttype        = iv_esttype
-                                          node_name      = 'ZSUPPLIER_GROUP'
-                                          node_desc      = 'Supplier Group'
-                                          datatype       = /plmb/if_exp_c=>gc_data_type-tabledata
-                                          line_no        = '1'
-                                          specid         = iv_specid
-                                          instance       = '1'
-                                          sort_seq       = '1'
-                                          estcat_value   = iv_technical_estcat
-                                          subid          = gc_debug_marker
-                                          ident1         = 'NO_SUPPLIER_GROUP_ROWS'
-                                          ident1_desc    = gc_debug_marker ) TO lt_rows.
+                                          ident1_desc    = 'S'
+                                          compexp_stext  = 'S' ) TO lt_rows.
     ENDIF.
 
     default_export_defaults( CHANGING ct_rows = lt_rows ).
@@ -797,7 +839,12 @@ CLASS zcl_spc_exp_gen_data_spplr2 IMPLEMENTATION.
 
   METHOD default_export_defaults.
     DATA lt_metadata TYPE ty_t_group_export_row.
-    DATA lt_data     TYPE ty_t_group_export_row.
+    TYPES: BEGIN OF ty_s_sorted_row,
+             sort_order TYPE i,
+             row        TYPE ty_s_group_export_row,
+           END OF ty_s_sorted_row.
+    DATA lt_data TYPE STANDARD TABLE OF ty_s_sorted_row.
+    DATA ls_data TYPE ty_s_sorted_row.
     DATA lt_seen     TYPE SORTED TABLE OF string WITH UNIQUE KEY table_line.
     DATA lv_index    TYPE sy-tabix.
     DATA lv_line_no  TYPE i.
@@ -846,25 +893,25 @@ CLASS zcl_spc_exp_gen_data_spplr2 IMPLEMENTATION.
       IF ls_row-datatype <> /plmb/if_exp_c=>gc_data_type-tabledata.
         APPEND ls_row TO lt_metadata.
       ELSE.
-        APPEND ls_row TO lt_data.
+        CLEAR ls_data.
+        ls_data-row = ls_row.
+        ls_data-sort_order = ls_row-sort_seq.
+        APPEND ls_data TO lt_data.
       ENDIF.
     ENDLOOP.
 
-    SORT lt_data BY estcat_desc
-                    subid
-                    ident1
-                    ident1_desc.
+    SORT lt_data STABLE BY row-estcat_desc sort_order.
 
     CLEAR ct_rows.
     APPEND LINES OF lt_metadata TO ct_rows.
 
     CLEAR lv_line_no.
-    LOOP AT lt_data INTO ls_row.
+    LOOP AT lt_data INTO ls_data.
+      ls_row = ls_data-row.
       lv_index = lines( ct_rows ) + 1.
       lv_line_no += 1.
       ls_row-engine_key_row = lv_index.
       ls_row-line_no        = lv_line_no.
-      ls_row-sort_seq       = lv_line_no.
       APPEND ls_row TO ct_rows.
     ENDLOOP.
   ENDMETHOD.
@@ -878,6 +925,7 @@ CLASS zcl_spc_exp_gen_data_spplr2 IMPLEMENTATION.
         child_recn  TYPE n LENGTH 20,
         child_subid TYPE c LENGTH 30,
         child_type  TYPE c LENGTH 30,
+        compexp     TYPE estvp-compexp,
       END OF ty_s_group_member_db,
       ty_t_group_member_db TYPE STANDARD TABLE OF ty_s_group_member_db WITH DEFAULT KEY.
 
@@ -930,12 +978,29 @@ CLASS zcl_spc_exp_gen_data_spplr2 IMPLEMENTATION.
     DATA lv_group_ident     TYPE string.
     DATA lt_group_members   TYPE ty_t_group_member_db.
     DATA ls_group_member    TYPE ty_s_group_member_db.
-    DATA lv_cfg_count       TYPE string.
-    DATA lv_group_cfg_count TYPE string.
-    DATA lv_val_id_count    TYPE string.
-    DATA lv_diag            TYPE string.
+    TYPES: BEGIN OF ty_s_nutrient_valuation,
+             recn TYPE estva-recn,
+             actn TYPE estva-actn,
+             valfr TYPE estva-valfr,
+           END OF ty_s_nutrient_valuation.
+    DATA lt_nutrient_valuations TYPE STANDARD TABLE OF ty_s_nutrient_valuation.
+    DATA ls_nutrient_valuation TYPE ty_s_nutrient_valuation.
+    DATA lv_nutrient_object TYPE ausp-objek.
+    DATA lv_nutrient_unit TYPE ausp-atwrt.
+    TYPES: BEGIN OF ty_s_child_identifier,
+             child_recn TYPE estrh-recn,
+             langu      TYPE estri-langu,
+             ident      TYPE estri-ident,
+           END OF ty_s_child_identifier.
+    DATA lt_child_identifiers TYPE STANDARD TABLE OF ty_s_child_identifier WITH DEFAULT KEY.
+    DATA ls_child_identifier TYPE ty_s_child_identifier.
+    DATA lt_child_names TYPE SORTED TABLE OF estri-ident WITH UNIQUE KEY table_line.
+    DATA lv_child_name TYPE estri-ident.
     DATA lv_line_no         TYPE i.
     DATA lv_failed          TYPE /plmb/spi_failed_ind.
+    DATA lv_group_node        TYPE /plmb/spi_node_name.
+    DATA lv_group_list_action TYPE /plmb/spi_action_name.
+    DATA lv_group_action      TYPE /plmb/spi_action_name.
 
     FIELD-SYMBOLS <lt_qual_ids>      TYPE STANDARD TABLE.
     FIELD-SYMBOLS <lt_qual_rows>     TYPE STANDARD TABLE.
@@ -952,6 +1017,17 @@ CLASS zcl_spc_exp_gen_data_spplr2 IMPLEMENTATION.
     FIELD-SYMBOLS <ls_val_row>       TYPE any.
     FIELD-SYMBOLS <ls_qual_row>      TYPE any.
 
+    " Nutrients use the quantitative node, including its unit fields.
+    IF iv_technical_estcat = 'SAP_RMS_1012_005'.
+      lv_group_node        = /plmb/if_spc_attr=>gc_node_rsp_quant_li.
+      lv_group_list_action = /plmb/if_spc_attr=>gc_actions_qua-quant_list.
+      lv_group_action      = /plmb/if_spc_attr=>gc_actions_qua-quant_grp.
+    ELSE.
+      lv_group_node        = /plmb/if_spc_attr=>gc_node_rsp_qual_li.
+      lv_group_list_action = /plmb/if_spc_attr=>gc_actions_qua-qual_list.
+      lv_group_action      = /plmb/if_spc_attr=>gc_actions_qua-qual_grp.
+    ENDIF.
+
     /plmb/cl_spi_connector=>create_instance( EXPORTING iv_abbid     = /plmb/if_spc_attr=>gc_abbid_rsp_spc
                                              IMPORTING eo_connector = lo_connector_rsp
                                                        eo_metadata  = lo_metadata_rsp ).
@@ -964,7 +1040,7 @@ CLASS zcl_spc_exp_gen_data_spplr2 IMPLEMENTATION.
       RETURN.
     ENDIF.
 
-    lo_metadata_rsp->get_node_details( EXPORTING iv_node_name            = /plmb/if_spc_attr=>gc_node_rsp_qual_li
+    lo_metadata_rsp->get_node_details( EXPORTING iv_node_name            = lv_group_node
                                        IMPORTING eo_node_id_table_rtti   = lo_id_table_type
                                                  eo_node_data_table_rtti = lo_table_type ).
 
@@ -1003,16 +1079,12 @@ CLASS zcl_spc_exp_gen_data_spplr2 IMPLEMENTATION.
 
         lv_row_vat = get_component_string( is_data      = <ls_export_row>
                                            iv_component = /plmb/if_exp_c=>gc_component_key-engine_v_a_type ).
-        IF lv_row_vat IS INITIAL.
-          lv_row_vat = get_component_string( is_data      = <ls_export_row>
-                                             iv_component = 'ESTCAT' ).
-        ENDIF.
         IF me->get_component_string( is_data      = <ls_export_row>
                                      iv_component = /plmb/if_exp_c=>gc_component_key-engine_datatype )
            = /plmb/if_exp_c=>gc_data_type-metadata.
           CONTINUE.
         ENDIF.
-        IF lv_row_vat IS NOT INITIAL AND lv_row_vat <> iv_technical_estcat.
+        IF lv_row_vat <> iv_technical_estcat.
           CONTINUE.
         ENDIF.
         lv_row_node = get_component_string( is_data      = <ls_export_row>
@@ -1380,16 +1452,16 @@ CLASS zcl_spc_exp_gen_data_spplr2 IMPLEMENTATION.
       ls_param-estcat       = iv_technical_estcat.
       ls_param-subcat_group = ls_cfg-subcat_grp.
       ls_param-recn_group   = lv_recn_group.
-      lo_connector_rsp->action( EXPORTING iv_node_name   = /plmb/if_spc_attr=>gc_node_rsp_qual_li
-                                          iv_action_name = /plmb/if_spc_attr=>gc_actions_qua-qual_list
+      lo_connector_rsp->action( EXPORTING iv_node_name   = lv_group_node
+                                          iv_action_name = lv_group_list_action
                                           is_param       = ls_param
                                 IMPORTING ev_failed      = lv_failed ).
       IF lv_failed = abap_true.
         CONTINUE.
       ENDIF.
 
-      lo_connector_rsp->action( EXPORTING iv_node_name   = /plmb/if_spc_attr=>gc_node_rsp_qual_li
-                                          iv_action_name = /plmb/if_spc_attr=>gc_actions_qua-qual_grp
+      lo_connector_rsp->action( EXPORTING iv_node_name   = lv_group_node
+                                          iv_action_name = lv_group_action
                                 IMPORTING ev_failed      = lv_failed ).
       IF lv_failed = abap_true.
         CONTINUE.
@@ -1401,7 +1473,7 @@ CLASS zcl_spc_exp_gen_data_spplr2 IMPLEMENTATION.
         APPEND ls_val_id TO lt_val_id_temp.
 
         lo_connector_rsp->retrieve( EXPORTING iv_node_name        = /plmb/if_spc_attr=>gc_node_rsp_lead_object
-                                              iv_target_node_name = /plmb/if_spc_attr=>gc_node_rsp_qual_li
+                                              iv_target_node_name = lv_group_node
                                               it_node_id          = lt_val_id_temp
                                     IMPORTING ev_failed           = lv_failed
                                               et_node_data        = <lt_qual_rows_tmp> ).
@@ -1449,6 +1521,7 @@ CLASS zcl_spc_exp_gen_data_spplr2 IMPLEMENTATION.
     ls_row-grp_subid      = 'GRP_SUBID'.
     ls_row-ident1         = 'IDENT1'.
     ls_row-ident1_desc    = 'IDENT1_DESC'.
+    ls_row-compexp_stext  = 'COMPEXP_STEXT'.
     APPEND ls_row TO ct_rows.
 
     CLEAR ls_row.
@@ -1470,6 +1543,7 @@ CLASS zcl_spc_exp_gen_data_spplr2 IMPLEMENTATION.
     ls_row-grp_subid      = 'Group'.
     ls_row-ident1         = 'Identifier'.
     ls_row-ident1_desc    = 'Identifier Description'.
+    ls_row-compexp_stext  = 'UoM'.
     APPEND ls_row TO ct_rows.
 
     CLEAR ls_row.
@@ -1491,6 +1565,7 @@ CLASS zcl_spc_exp_gen_data_spplr2 IMPLEMENTATION.
     ls_row-grp_subid      = 'BF'.
     ls_row-ident1         = 'BF'.
     ls_row-ident1_desc    = 'BF'.
+    ls_row-compexp_stext  = 'BF'.
     APPEND ls_row TO ct_rows.
 
     CLEAR ls_row.
@@ -1512,6 +1587,7 @@ CLASS zcl_spc_exp_gen_data_spplr2 IMPLEMENTATION.
     ls_row-grp_subid      = 'S'.
     ls_row-ident1         = 'S'.
     ls_row-ident1_desc    = 'S'.
+    ls_row-compexp_stext  = 'S'.
     APPEND ls_row TO ct_rows.
 
     IF     <lt_qual_rows> IS INITIAL
@@ -1563,16 +1639,16 @@ CLASS zcl_spc_exp_gen_data_spplr2 IMPLEMENTATION.
             ls_param-recn_group = lv_group_recn.
           ENDIF.
 
-          lo_connector_rsp->action( EXPORTING iv_node_name   = /plmb/if_spc_attr=>gc_node_rsp_qual_li
-                                              iv_action_name = /plmb/if_spc_attr=>gc_actions_qua-qual_list
+          lo_connector_rsp->action( EXPORTING iv_node_name   = lv_group_node
+                                              iv_action_name = lv_group_list_action
                                               is_param       = ls_param
                                     IMPORTING ev_failed      = lv_failed ).
           IF lv_failed = abap_true.
             CONTINUE.
           ENDIF.
 
-          lo_connector_rsp->action( EXPORTING iv_node_name   = /plmb/if_spc_attr=>gc_node_rsp_qual_li
-                                              iv_action_name = /plmb/if_spc_attr=>gc_actions_qua-qual_grp
+          lo_connector_rsp->action( EXPORTING iv_node_name   = lv_group_node
+                                              iv_action_name = lv_group_action
                                     IMPORTING ev_failed      = lv_failed ).
           IF lv_failed = abap_true.
             CONTINUE.
@@ -1597,7 +1673,7 @@ CLASS zcl_spc_exp_gen_data_spplr2 IMPLEMENTATION.
           APPEND ls_val_id TO lt_val_id_temp.
 
           lo_connector_rsp->retrieve( EXPORTING iv_node_name        = /plmb/if_spc_attr=>gc_node_rsp_lead_object
-                                                iv_target_node_name = /plmb/if_spc_attr=>gc_node_rsp_qual_li
+                                                iv_target_node_name = lv_group_node
                                                 it_node_id          = lt_val_id_temp
                                       IMPORTING ev_failed           = lv_failed
                                                 et_node_data        = <lt_qual_rows_tmp> ).
@@ -1673,6 +1749,7 @@ CLASS zcl_spc_exp_gen_data_spplr2 IMPLEMENTATION.
                    child~recn   AS child_recn
                    child~subid  AS child_subid
                    child~subcat AS child_type
+                   vp~compexp   AS compexp
               INTO TABLE lt_group_members
               FROM estrh AS grp
                      INNER JOIN
@@ -1693,6 +1770,7 @@ CLASS zcl_spc_exp_gen_data_spplr2 IMPLEMENTATION.
                    child~recn   AS child_recn
                    child~subid  AS child_subid
                    child~subcat AS child_type
+                   vp~compexp   AS compexp
               INTO TABLE lt_group_members
               FROM estrh AS grp
                      INNER JOIN
@@ -1710,6 +1788,24 @@ CLASS zcl_spc_exp_gen_data_spplr2 IMPLEMENTATION.
                                    ord
                                    child_subid.
           DELETE ADJACENT DUPLICATES FROM lt_group_members COMPARING group_subid ord child_subid.
+
+          " Read product names once for all children of this group.
+          CLEAR lt_child_identifiers.
+          IF lt_group_members IS NOT INITIAL.
+            SELECT child~recn id~langu id~ident
+              INTO TABLE lt_child_identifiers
+              FROM estrh AS child
+              INNER JOIN estri AS id ON id~recnroot = child~recnroot
+              FOR ALL ENTRIES IN lt_group_members
+              WHERE child~recn = lt_group_members-child_recn
+                AND id~idtype = 'NAM'
+                AND id~idcat = 'PROD'
+                AND ( id~langu = sy-langu OR id~langu = space )
+                AND id~delflg = space
+                AND id~parkflg = space
+                AND id~valfr <= sy-datum
+                AND id~valto >= sy-datum.
+          ENDIF.
 
           LOOP AT lt_group_members INTO ls_group_member.
             lv_line_no += 1.
@@ -1731,8 +1827,76 @@ CLASS zcl_spc_exp_gen_data_spplr2 IMPLEMENTATION.
             ls_row-estcat_value   = iv_technical_estcat.
             ls_row-subid          = ls_group_member-child_subid.
             ls_row-grp_subid      = ls_group_member-group_subid.
-            ls_row-ident1         = ls_group_member-child_subid.
-            ls_row-ident1_desc    = ls_group_member-child_subid.
+            " Unmaintained group items obtain their unit from the nutrient property.
+            IF ls_group_member-compexp IS INITIAL
+               AND iv_technical_estcat = 'SAP_RMS_1012_005'.
+              CLEAR: lt_nutrient_valuations, lv_nutrient_unit.
+              SELECT va~recn va~actn va~valfr
+                INTO TABLE lt_nutrient_valuations
+                FROM estva AS va
+                INNER JOIN estvh AS vh ON vh~recn = va~recntvh
+                                      AND vh~recnroot = va~recnroot
+                WHERE va~recnroot = ls_group_member-child_recn
+                  AND vh~estcat = 'SAP_RMS_1011_001'
+                  AND vh~delflg = space
+                  AND vh~parkflg = space
+                  AND vh~valfr <= sy-datum
+                  AND vh~valto >= sy-datum
+                  AND va~delflg = space
+                  AND va~parkflg = space
+                  AND va~valfr <= sy-datum
+                  AND va~valto >= sy-datum.
+              SORT lt_nutrient_valuations BY valfr DESCENDING actn DESCENDING recn.
+              LOOP AT lt_nutrient_valuations INTO ls_nutrient_valuation.
+                CONCATENATE ls_nutrient_valuation-recn ls_nutrient_valuation-actn
+                  INTO lv_nutrient_object.
+                CLEAR lv_nutrient_unit.
+                SELECT SINGLE a~atwrt
+                  INTO lv_nutrient_unit
+                  FROM ausp AS a
+                  INNER JOIN cabn AS c ON c~atinn = a~atinn
+                  WHERE a~objek = lv_nutrient_object
+                    AND a~lkenz = space
+                    AND c~atnam = 'SAP_RMS_1011_001_VALUE'
+                    AND c~lkenz = space.
+                IF sy-subrc = 0 AND lv_nutrient_unit IS NOT INITIAL.
+                  ls_group_member-compexp = lv_nutrient_unit.
+                  EXIT.
+                ENDIF.
+              ENDLOOP.
+            ENDIF.
+            IF ls_group_member-compexp IS NOT INITIAL.
+              CALL FUNCTION 'CONVERSION_EXIT_CUNIT_OUTPUT'
+                EXPORTING input = ls_group_member-compexp
+                          language = sy-langu
+                IMPORTING output = ls_row-compexp_stext
+                EXCEPTIONS OTHERS = 1.
+              IF sy-subrc <> 0.
+                ls_row-compexp_stext = ls_group_member-compexp.
+              ENDIF.
+            ENDIF.
+            ls_row-ident1 = ls_group_member-child_subid.
+            CLEAR lt_child_names.
+            LOOP AT lt_child_identifiers INTO ls_child_identifier
+                 WHERE child_recn = ls_group_member-child_recn AND langu = sy-langu.
+              IF ls_child_identifier-ident IS NOT INITIAL.
+                INSERT ls_child_identifier-ident INTO TABLE lt_child_names.
+              ENDIF.
+            ENDLOOP.
+            IF lt_child_names IS INITIAL.
+              LOOP AT lt_child_identifiers INTO ls_child_identifier
+                   WHERE child_recn = ls_group_member-child_recn AND langu = space.
+                IF ls_child_identifier-ident IS NOT INITIAL.
+                  INSERT ls_child_identifier-ident INTO TABLE lt_child_names.
+                ENDIF.
+              ENDLOOP.
+            ENDIF.
+            " Keep the SpecID when the product name is missing or ambiguous.
+            IF lines( lt_child_names ) = 1.
+              READ TABLE lt_child_names INTO lv_child_name INDEX 1.
+              ls_row-ident1 = lv_child_name.
+            ENDIF.
+            ls_row-ident1_desc = ls_row-ident1.
             APPEND ls_row TO ct_rows.
           ENDLOOP.
         ENDLOOP.
@@ -1744,34 +1908,6 @@ CLASS zcl_spc_exp_gen_data_spplr2 IMPLEMENTATION.
     ENDIF.
 
     IF <lt_qual_rows> IS INITIAL.
-      lv_line_no += 1.
-      lv_cfg_count = lines( lt_cfg ).
-      lv_group_cfg_count = lines( <lt_group_cfg> ).
-      lv_val_id_count = lines( lt_val_ids ).
-      CONCATENATE 'CFG=' lv_cfg_count
-                  ';GROUP_CFG=' lv_group_cfg_count
-                  ';VAL_IDS=' lv_val_id_count
-                  INTO lv_diag.
-
-      CLEAR ls_row.
-      ls_row-engine_key_col = 1.
-      ls_row-engine_key_row = lv_line_no + 4.
-      ls_row-estcat         = iv_technical_estcat.
-      ls_row-estcat_desc    = iv_description.
-      ls_row-esttype        = iv_esttype.
-      ls_row-node_name      = 'ZSUPPLIER_GROUP'.
-      ls_row-node_desc      = 'Supplier Group'.
-      ls_row-datatype       = /plmb/if_exp_c=>gc_data_type-tabledata.
-      ls_row-line_no        = lv_line_no.
-      ls_row-specid         = gc_debug_marker.
-      ls_row-instance       = '1'.
-      ls_row-sort_seq       = lv_line_no.
-      ls_row-estcat_value   = iv_technical_estcat.
-      ls_row-subid          = 'NO_QUAL_ROWS'.
-      ls_row-grp_subid      = ls_cfg-subcat_grp.
-      ls_row-ident1         = iv_recn_group.
-      ls_row-ident1_desc    = lv_diag.
-      APPEND ls_row TO ct_rows.
       RETURN.
     ENDIF.
 
@@ -1790,7 +1926,11 @@ CLASS zcl_spc_exp_gen_data_spplr2 IMPLEMENTATION.
       ls_row-line_no        = lv_line_no.
       ls_row-specid         = iv_specid.
       ls_row-instance       = '1'.
-      ls_row-sort_seq       = lv_line_no.
+      ls_row-sort_seq = get_component_string( is_data = <ls_qual_row>
+                                               iv_component = 'ORD' ).
+      IF ls_row-sort_seq IS INITIAL.
+        ls_row-sort_seq = lv_line_no.
+      ENDIF.
       ls_row-recn           = get_component_string( is_data      = <ls_qual_row>
                                                     iv_component = 'RECN' ).
       ls_row-actn           = get_component_string( is_data      = <ls_qual_row>
@@ -1809,6 +1949,15 @@ CLASS zcl_spc_exp_gen_data_spplr2 IMPLEMENTATION.
       IF ls_row-subid IS INITIAL.
         ls_row-subid = get_component_string( is_data      = <ls_qual_row>
                                              iv_component = 'IDENT1' ).
+      ENDIF.
+      IF ls_row-specid IS INITIAL.
+        ls_row-specid = ls_row-subid.
+      ENDIF.
+      ls_row-compexp_stext = get_component_string( is_data = <ls_qual_row>
+                                                       iv_component = 'COMPEXP_STEXT' ).
+      IF ls_row-compexp_stext IS INITIAL.
+        ls_row-compexp_stext = get_component_string( is_data = <ls_qual_row>
+                                                     iv_component = 'COMPEXP' ).
       ENDIF.
       ls_row-grp_subid   = get_component_string( is_data      = <ls_qual_row>
                                                  iv_component = 'GRP_SUBID' ).
@@ -1946,6 +2095,7 @@ CLASS zcl_spc_exp_gen_data_spplr2 IMPLEMENTATION.
              atfor       TYPE cabn-atfor,
              atprt       TYPE cabn-atprt,
              msehi       TYPE cabn-msehi,
+             atbez       TYPE cabnt-atbez,
              value_field TYPE string,
              desc_field  TYPE string,
            END OF ty_s_atnam.
@@ -1964,6 +2114,16 @@ CLASS zcl_spc_exp_gen_data_spplr2 IMPLEMENTATION.
              atawe TYPE cawn-atawe,
              atwtb TYPE cawnt-atwtb,
            END OF ty_s_cawn_allowed_value.
+    TYPES: BEGIN OF ty_s_lookup_helper,
+             check_table  TYPE dd03l-tabname,
+             helper_table TYPE dd03l-tabname,
+             value_field  TYPE dd03l-fieldname,
+             desc_field   TYPE dd03l-fieldname,
+           END OF ty_s_lookup_helper.
+    TYPES: BEGIN OF ty_s_plant_value,
+             werks TYPE werks_d,
+             name1 TYPE ad_name1,
+           END OF ty_s_plant_value.
 
     DATA ls_vatcust              TYPE /plmb/s_spc_val_action_vatcust.
     DATA ls_atnam                TYPE ty_s_atnam.
@@ -1973,12 +2133,18 @@ CLASS zcl_spc_exp_gen_data_spplr2 IMPLEMENTATION.
     DATA lt_allowed_values       TYPE STANDARD TABLE OF ty_s_allowed_value.
     DATA lt_cawn_values          TYPE STANDARD TABLE OF ty_s_cawn_allowed_value.
     DATA lt_check_fields         TYPE STANDARD TABLE OF ty_s_check_field.
+    DATA lt_lookup_helpers       TYPE STANDARD TABLE OF ty_s_lookup_helper.
+    DATA lt_plant_values         TYPE STANDARD TABLE OF ty_s_plant_value.
     DATA ls_cawn_value           TYPE ty_s_cawn_allowed_value.
     DATA ls_check_field          TYPE ty_s_check_field.
+    DATA ls_lookup_helper        TYPE ty_s_lookup_helper.
+    DATA ls_plant_value          TYPE ty_s_plant_value.
     DATA ls_t005                 TYPE t005.
     DATA ls_t005t                TYPE t005t.
     DATA ls_t179                 TYPE t179.
     DATA ls_t179t                TYPE t179t.
+    DATA lv_atbez                TYPE string.
+    DATA lv_lookup_table         TYPE dd03l-tabname.
     DATA lv_failed               TYPE /plmb/spi_failed_ind.
     DATA lv_fieldname            TYPE abap_compname.
     DATA lv_additional_info      TYPE string.
@@ -2080,6 +2246,12 @@ CLASS zcl_spc_exp_gen_data_spplr2 IMPLEMENTATION.
       RETURN.
     ENDIF.
 
+    " Add helper sources here when a check table should follow the same value-help source as the UI.
+    APPEND VALUE ty_s_lookup_helper( check_table  = 'T001W'
+                                     helper_table = 'SHSM_MT001W'
+                                     value_field  = 'WERKS'
+                                     desc_field   = 'NAME1' ) TO lt_lookup_helpers.
+
     LOOP AT ls_vatcust-vat_customizing ASSIGNING <ls_vatcust>
          WHERE     estcat  = iv_technical_estcat
                AND atnam  IS NOT INITIAL.
@@ -2097,8 +2269,12 @@ CLASS zcl_spc_exp_gen_data_spplr2 IMPLEMENTATION.
              cabn~atfor
              cabn~atprt
              cabn~msehi
+             cabnt~atbez
         INTO CORRESPONDING FIELDS OF TABLE lt_vat_atnam
         FROM cabn
+               LEFT OUTER JOIN
+                 cabnt ON  cabnt~atinn = cabn~atinn
+                       AND cabnt~spras = sy-langu
         FOR ALL ENTRIES IN lt_value_atnam
         WHERE cabn~atnam = lt_value_atnam-atnam.
 
@@ -2106,12 +2282,61 @@ CLASS zcl_spc_exp_gen_data_spplr2 IMPLEMENTATION.
                            atprt DESCENDING.
       DELETE ADJACENT DUPLICATES FROM lt_vat_atnam COMPARING atnam.
 
+      LOOP AT lt_vat_atnam INTO ls_atnam.
+        lv_atbez = ls_atnam-atbez.
+        CONDENSE lv_atbez.
+        IF     lv_atbez      <> 'Production Plant'
+           AND ls_atnam-atnam <> 'WERKS'.
+          CONTINUE.
+        ENDIF.
+
+        CLEAR lt_plant_values.
+        SELECT werks,
+               name1
+          FROM shsm_mt001w
+          INTO TABLE @lt_plant_values.
+        IF sy-subrc <> 0.
+          CONTINUE.
+        ENDIF.
+
+        CLEAR lv_allowed_value_count.
+        LOOP AT lt_plant_values INTO ls_plant_value.
+          lv_allowed_value_count += 1.
+          CLEAR ls_allowed_value.
+          ls_allowed_value-atnam              = ls_atnam-atnam.
+          ls_allowed_value-sort_seq           = lv_allowed_value_count.
+          ls_allowed_value-allowed_value      = ls_plant_value-werks.
+          ls_allowed_value-allowed_value_desc = ls_plant_value-name1.
+          IF ls_allowed_value-allowed_value IS INITIAL.
+            CONTINUE.
+          ENDIF.
+          APPEND ls_allowed_value TO lt_allowed_values.
+        ENDLOOP.
+      ENDLOOP.
+
       LOOP AT lt_vat_atnam INTO ls_atnam WHERE atprt IS NOT INITIAL.
+        lv_atbez = ls_atnam-atbez.
+        CONDENSE lv_atbez.
+        IF    lv_atbez      = 'Production Plant'
+           OR ls_atnam-atnam = 'WERKS'.
+          CONTINUE.
+        ENDIF.
+
+        CLEAR: ls_lookup_helper,
+               lv_lookup_table.
+        READ TABLE lt_lookup_helpers INTO ls_lookup_helper WITH KEY check_table = ls_atnam-atprt.
+        IF ls_lookup_helper-helper_table IS INITIAL.
+          lv_lookup_table = ls_atnam-atprt.
+        ELSE.
+          lv_lookup_table       = ls_lookup_helper-helper_table.
+          ls_atnam-value_field = ls_lookup_helper-value_field.
+          ls_atnam-desc_field  = ls_lookup_helper-desc_field.
+        ENDIF.
+
         IF ls_atnam-atprt = 'T005'.
           CLEAR lv_allowed_value_count.
           SELECT * FROM t005
-            INTO ls_t005
-            UP TO 500 ROWS.
+            INTO ls_t005.
             CLEAR ls_allowed_value.
             lv_allowed_value_count += 1.
             ls_allowed_value-atnam         = ls_atnam-atnam.
@@ -2134,8 +2359,7 @@ CLASS zcl_spc_exp_gen_data_spplr2 IMPLEMENTATION.
         IF ls_atnam-atprt = 'T179'.
           CLEAR lv_t179_sort_seq.
           SELECT * FROM t179
-            INTO ls_t179
-            UP TO 500 ROWS.
+            INTO ls_t179.
             CLEAR ls_allowed_value.
             lv_t179_sort_seq += 1.
             ls_allowed_value-atnam         = ls_atnam-atnam.
@@ -2164,7 +2388,7 @@ CLASS zcl_spc_exp_gen_data_spplr2 IMPLEMENTATION.
                datatype
           INTO TABLE lt_check_fields
           FROM dd03l
-          WHERE tabname  = ls_atnam-atprt
+          WHERE tabname  = lv_lookup_table
             AND as4local = 'A'.
         IF sy-subrc <> 0.
           CONTINUE.
@@ -2174,13 +2398,15 @@ CLASS zcl_spc_exp_gen_data_spplr2 IMPLEMENTATION.
                                      OR fieldname = '.INCLUDE'.
         SORT lt_check_fields BY position.
 
-        LOOP AT lt_check_fields INTO ls_check_field WHERE keyflag = abap_true.
-          IF ls_check_field-fieldname = 'SPRAS'.
-            CONTINUE.
-          ENDIF.
-          ls_atnam-value_field = ls_check_field-fieldname.
-          EXIT.
-        ENDLOOP.
+        IF ls_atnam-value_field IS INITIAL.
+          LOOP AT lt_check_fields INTO ls_check_field WHERE keyflag = abap_true.
+            IF ls_check_field-fieldname = 'SPRAS'.
+              CONTINUE.
+            ENDIF.
+            ls_atnam-value_field = ls_check_field-fieldname.
+            EXIT.
+          ENDLOOP.
+        ENDIF.
         IF ls_atnam-value_field IS INITIAL.
           READ TABLE lt_check_fields INTO ls_check_field INDEX 1.
           IF sy-subrc = 0.
@@ -2191,22 +2417,24 @@ CLASS zcl_spc_exp_gen_data_spplr2 IMPLEMENTATION.
           CONTINUE.
         ENDIF.
 
-        LOOP AT lt_check_fields INTO ls_check_field.
-          IF ls_check_field-fieldname = ls_atnam-value_field.
-            CONTINUE.
-          ENDIF.
-          IF    ls_check_field-fieldname  = 'NAME1'
-             OR ls_check_field-fieldname  = 'KTEXT'
-             OR ls_check_field-fieldname  = 'LTEXT'
-             OR ls_check_field-fieldname  = 'BEZEI'
-             OR ls_check_field-fieldname  = 'ATWTB'
-             OR ls_check_field-fieldname CP '*TEXT*'
-             OR ls_check_field-fieldname CP '*TXT*'
-             OR ls_check_field-fieldname CP '*DESC*'.
-            ls_atnam-desc_field = ls_check_field-fieldname.
-            EXIT.
-          ENDIF.
-        ENDLOOP.
+        IF ls_atnam-desc_field IS INITIAL.
+          LOOP AT lt_check_fields INTO ls_check_field.
+            IF ls_check_field-fieldname = ls_atnam-value_field.
+              CONTINUE.
+            ENDIF.
+            IF    ls_check_field-fieldname  = 'NAME1'
+               OR ls_check_field-fieldname  = 'KTEXT'
+               OR ls_check_field-fieldname  = 'LTEXT'
+               OR ls_check_field-fieldname  = 'BEZEI'
+               OR ls_check_field-fieldname  = 'ATWTB'
+               OR ls_check_field-fieldname CP '*TEXT*'
+               OR ls_check_field-fieldname CP '*TXT*'
+               OR ls_check_field-fieldname CP '*DESC*'.
+              ls_atnam-desc_field = ls_check_field-fieldname.
+              EXIT.
+            ENDIF.
+          ENDLOOP.
+        ENDIF.
         IF ls_atnam-desc_field IS INITIAL.
           LOOP AT lt_check_fields INTO ls_check_field
                WHERE     keyflag  <> abap_true
@@ -2220,7 +2448,7 @@ CLASS zcl_spc_exp_gen_data_spplr2 IMPLEMENTATION.
 
         TRY.
             UNASSIGN <lt_check_rows>.
-            CREATE DATA lr_check_rows TYPE STANDARD TABLE OF (ls_atnam-atprt).
+            CREATE DATA lr_check_rows TYPE STANDARD TABLE OF (lv_lookup_table).
             ASSIGN lr_check_rows->* TO <lt_check_rows>.
           CATCH cx_sy_create_data_error.
             CONTINUE.
@@ -2230,9 +2458,8 @@ CLASS zcl_spc_exp_gen_data_spplr2 IMPLEMENTATION.
         ENDIF.
 
         SELECT *
-          FROM (ls_atnam-atprt)
-          INTO TABLE <lt_check_rows>
-          UP TO 500 ROWS.
+          FROM (lv_lookup_table)
+          INTO TABLE <lt_check_rows>.
         IF sy-subrc <> 0.
           CONTINUE.
         ENDIF.
@@ -2469,15 +2696,27 @@ CLASS zcl_spc_exp_gen_data_spplr2 IMPLEMENTATION.
           CONCATENATE lv_additional_info 'Character value' INTO lv_additional_info SEPARATED BY '; '.
       ENDCASE.
 
-      READ TABLE lt_vat_atnam INTO ls_atnam WITH KEY atnam = <ls_vatcust>-atnam.
-      IF sy-subrc = 0 AND ls_atnam-atprt IS NOT INITIAL.
-        CONCATENATE 'Check table' ls_atnam-atprt
-                    INTO lv_additional_info_part
-                    SEPARATED BY ' '.
-        CONCATENATE lv_additional_info lv_additional_info_part
-                    INTO lv_additional_info
-                    SEPARATED BY '; '.
-      ENDIF.
+"      READ TABLE lt_vat_atnam INTO ls_atnam WITH KEY atnam = <ls_vatcust>-atnam.
+"      IF sy-subrc = 0 AND ls_atnam-atprt IS NOT INITIAL.
+"        CONCATENATE 'Check table' ls_atnam-atprt
+"                    INTO lv_additional_info_part
+"                    SEPARATED BY ' '.
+"        CLEAR ls_lookup_helper.
+"        READ TABLE lt_lookup_helpers INTO ls_lookup_helper WITH KEY check_table = ls_atnam-atprt.
+"        IF    sy-subrc <> 0
+"           AND <ls_vatcust>-atnam = 'WERKS'.
+"          ls_lookup_helper-helper_table = 'SHSM_MT001W'.
+"        ENDIF.
+"        IF    ls_lookup_helper-helper_table IS NOT INITIAL
+"           AND ls_lookup_helper-helper_table <> ls_atnam-atprt.
+"          CONCATENATE lv_additional_info_part 'helper table' ls_lookup_helper-helper_table
+"                      INTO lv_additional_info_part
+"                      SEPARATED BY ' '.
+"        ENDIF.
+"        CONCATENATE lv_additional_info lv_additional_info_part
+"                    INTO lv_additional_info
+"                    SEPARATED BY '; '.
+"      ENDIF.
 
       lv_fieldname = <ls_vatcust>-atnam.
       TRANSLATE lv_fieldname USING '-_'.
