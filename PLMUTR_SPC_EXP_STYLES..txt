@@ -1,0 +1,332 @@
+<?xml version="1.0" encoding="ISO-8859-1"?>
+<xsl:stylesheet version="1.0"
+      xmlns:input="urn:schemas-microsoft-com:office:spreadsheet"
+      xmlns:xsl="http://www.w3.org/1999/XSL/Transform"
+      xmlns:sap="http://www.sap.com/sapxsl"
+      xmlns:rcp="http://www.sap.com/recipe_development"
+      xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet"
+      exclude-result-prefixes="rcp input">
+
+<!-- ************************************************************************************************-->
+<!-- Template: styles_for_excel
+     It contains all the styling information for the spraadsheet.
+    -->
+<!-- ************************************************************************************************-->
+<xsl:template name="styles_for_excel">
+  <xsl:param name="date_format"/>
+  <xsl:param name="time_format"/>
+  <xsl:param name="int_format"/>
+  <xsl:param name="number_format"/>
+
+  <!--  The xmlns must be set otherwise it will be considered being in a default
+    namespace and that will result in the generated xml file with a xmlns=""
+    attribute that will lead to error when the spreadsheet file is opened.  -->
+  <Styles>
+    <Style ss:ID="Default" ss:Name="Normal">
+     <Alignment ss:Vertical="Bottom"/>
+     <Borders/>
+     <Font ss:FontName="Calibri" x:CharSet="238" x:Family="Swiss" ss:Size="11" ss:Color="#000000"/>
+     <Interior/>
+     <NumberFormat/>
+     <Protection/>
+    </Style>
+
+    <Style ss:ID="string">
+     <NumberFormat ss:Format="@"/>
+    </Style>
+    <Style ss:ID="integer">
+      <NumberFormat ss:Format="{$int_format}"/>
+    </Style>
+    <Style ss:ID="number">
+      <NumberFormat ss:Format="{$number_format}"/>
+    </Style>
+    <Style ss:ID="date">
+      <NumberFormat ss:Format="{$date_format}"/>
+    </Style>
+    <Style ss:ID="time">
+      <NumberFormat ss:Format="{$time_format}"/>
+    </Style>
+
+    <Style ss:ID="h1">
+     <Font ss:FontName="Calibri" x:CharSet="238" x:Family="Swiss" ss:Size="18" ss:Color="#000000" ss:Bold="1" ss:Underline="Single"/>
+    </Style>
+    <Style ss:ID="h2">
+     <Font ss:FontName="Calibri" x:CharSet="238" x:Family="Swiss" ss:Size="16" ss:Color="#000000" ss:Bold="1"/>
+    </Style>
+    <Style ss:ID="h3">
+     <Font ss:FontName="Calibri" x:CharSet="238" x:Family="Swiss" ss:Size="14" ss:Color="#000000" ss:Bold="1" ss:Underline="Single"/>
+    </Style>
+    <Style ss:ID="h4">
+     <Font ss:FontName="Calibri" x:CharSet="238" x:Family="Swiss" ss:Size="11" ss:Color="#000000" ss:Bold="1"/>
+    </Style>
+
+    <Style ss:ID="s30s" ss:Parent="string">
+      <Alignment ss:WrapText="1"/>
+    </Style>
+    <Style ss:ID="s30i" ss:Parent="integer"/>
+    <Style ss:ID="s30n" ss:Parent="number"/>
+    <Style ss:ID="s30d" ss:Parent="date"/>
+    <Style ss:ID="s30t" ss:Parent="time"/>
+
+    <Style ss:ID="s31s" ss:Parent="string">
+      <Borders>
+        <Border ss:Position="Left" ss:LineStyle="Continuous" ss:Weight="2"/>
+      </Borders>
+    </Style>
+    <Style ss:ID="s31i" ss:Parent="integer">
+      <Borders>
+        <Border ss:Position="Left" ss:LineStyle="Continuous" ss:Weight="2"/>
+      </Borders>
+    </Style>
+    <Style ss:ID="s31n" ss:Parent="number">
+      <Borders>
+        <Border ss:Position="Left" ss:LineStyle="Continuous" ss:Weight="2"/>
+      </Borders>
+    </Style>
+    <Style ss:ID="s31d" ss:Parent="date">
+      <Borders>
+        <Border ss:Position="Left" ss:LineStyle="Continuous" ss:Weight="2"/>
+      </Borders>
+    </Style>
+    <Style ss:ID="s31t" ss:Parent="time">
+      <Borders>
+        <Border ss:Position="Left" ss:LineStyle="Continuous" ss:Weight="2"/>
+      </Borders>
+    </Style>
+
+    <Style ss:ID="s32s" ss:Parent="string">
+      <Borders>
+        <Border ss:Position="Bottom" ss:LineStyle="Continuous" ss:Weight="2"/>
+      </Borders>
+    </Style>
+    <Style ss:ID="s32i" ss:Parent="integer">
+      <Borders>
+        <Border ss:Position="Bottom" ss:LineStyle="Continuous" ss:Weight="2"/>
+      </Borders>
+    </Style>
+    <Style ss:ID="s32n" ss:Parent="number">
+      <Borders>
+        <Border ss:Position="Bottom" ss:LineStyle="Continuous" ss:Weight="2"/>
+      </Borders>
+    </Style>
+    <Style ss:ID="s32d" ss:Parent="date">
+      <Borders>
+        <Border ss:Position="Bottom" ss:LineStyle="Continuous" ss:Weight="2"/>
+      </Borders>
+    </Style>
+    <Style ss:ID="s32t" ss:Parent="time">
+      <Borders>
+        <Border ss:Position="Bottom" ss:LineStyle="Continuous" ss:Weight="2"/>
+      </Borders>
+    </Style>
+
+    <Style ss:ID="s33s" ss:Parent="string">
+      <Borders>
+        <Border ss:Position="Right" ss:LineStyle="Continuous" ss:Weight="2"/>
+      </Borders>
+    </Style>
+    <Style ss:ID="s33i" ss:Parent="integer">
+      <Borders>
+        <Border ss:Position="Right" ss:LineStyle="Continuous" ss:Weight="2"/>
+      </Borders>
+    </Style>
+    <Style ss:ID="s33n" ss:Parent="number">
+      <Borders>
+        <Border ss:Position="Right" ss:LineStyle="Continuous" ss:Weight="2"/>
+      </Borders>
+    </Style>
+    <Style ss:ID="s33d" ss:Parent="date">
+      <Borders>
+        <Border ss:Position="Right" ss:LineStyle="Continuous" ss:Weight="2"/>
+      </Borders>
+    </Style>
+    <Style ss:ID="s33t" ss:Parent="time">
+      <Borders>
+        <Border ss:Position="Right" ss:LineStyle="Continuous" ss:Weight="2"/>
+      </Borders>
+    </Style>
+
+    <Style ss:ID="s34s" ss:Parent="string">
+      <Alignment ss:WrapText="1"/>
+      <Borders>
+        <Border ss:Position="Right" ss:LineStyle="Dash" ss:Weight="1"/>
+      </Borders>
+    </Style>
+    <Style ss:ID="s34i" ss:Parent="integer">
+      <Alignment ss:WrapText="1"/>
+      <Borders>
+        <Border ss:Position="Right" ss:LineStyle="Dash" ss:Weight="1"/>
+      </Borders>
+    </Style>
+    <Style ss:ID="s34n" ss:Parent="number">
+      <Alignment ss:WrapText="1"/>
+      <Borders>
+        <Border ss:Position="Right" ss:LineStyle="Dash" ss:Weight="1"/>
+      </Borders>
+    </Style>
+    <Style ss:ID="s34d" ss:Parent="date">
+      <Alignment ss:WrapText="1"/>
+      <Borders>
+        <Border ss:Position="Right" ss:LineStyle="Dash" ss:Weight="1"/>
+      </Borders>
+    </Style>
+    <Style ss:ID="s34t" ss:Parent="time">
+      <Alignment ss:WrapText="1"/>
+      <Borders>
+        <Border ss:Position="Right" ss:LineStyle="Dash" ss:Weight="1"/>
+      </Borders>
+    </Style>
+
+
+    <Style ss:ID="s35s" ss:Parent="string">
+      <Alignment ss:WrapText="1"/>
+      <Borders>
+        <Border ss:Position="Left" ss:LineStyle="Continuous" ss:Weight="2"/>
+        <Border ss:Position="Right" ss:LineStyle="Dash" ss:Weight="1"/>
+      </Borders>
+    </Style>
+    <Style ss:ID="s35i" ss:Parent="integer">
+      <Alignment ss:WrapText="1"/>
+      <Borders>
+        <Border ss:Position="Left" ss:LineStyle="Continuous" ss:Weight="2"/>
+        <Border ss:Position="Right" ss:LineStyle="Dash" ss:Weight="1"/>
+      </Borders>
+    </Style>
+    <Style ss:ID="s35n" ss:Parent="number">
+      <Alignment ss:WrapText="1"/>
+      <Borders>
+        <Border ss:Position="Left" ss:LineStyle="Continuous" ss:Weight="2"/>
+        <Border ss:Position="Right" ss:LineStyle="Dash" ss:Weight="1"/>
+      </Borders>
+    </Style>
+    <Style ss:ID="s35d" ss:Parent="date">
+      <Alignment ss:WrapText="1"/>
+      <Borders>
+        <Border ss:Position="Left" ss:LineStyle="Continuous" ss:Weight="2"/>
+        <Border ss:Position="Right" ss:LineStyle="Dash" ss:Weight="1"/>
+      </Borders>
+    </Style>
+    <Style ss:ID="s35t" ss:Parent="time">
+      <Alignment ss:WrapText="1"/>
+      <Borders>
+        <Border ss:Position="Left" ss:LineStyle="Continuous" ss:Weight="2"/>
+        <Border ss:Position="Right" ss:LineStyle="Dash" ss:Weight="1"/>
+      </Borders>
+    </Style>
+
+    <Style ss:ID="s36s" ss:Parent="string">
+      <Borders>
+        <Border ss:Position="Left" ss:LineStyle="Continuous" ss:Weight="2"/>
+        <Border ss:Position="Right" ss:LineStyle="Continuous" ss:Weight="2"/>
+      </Borders>
+     </Style>
+    <Style ss:ID="s36i" ss:Parent="integer">
+      <Borders>
+        <Border ss:Position="Left" ss:LineStyle="Continuous" ss:Weight="2"/>
+        <Border ss:Position="Right" ss:LineStyle="Continuous" ss:Weight="2"/>
+      </Borders>
+    </Style>
+    <Style ss:ID="s36n" ss:Parent="number">
+      <Borders>
+        <Border ss:Position="Left" ss:LineStyle="Continuous" ss:Weight="2"/>
+        <Border ss:Position="Right" ss:LineStyle="Continuous" ss:Weight="2"/>
+      </Borders>
+    </Style>
+    <Style ss:ID="s36d" ss:Parent="date">
+      <Borders>
+        <Border ss:Position="Left" ss:LineStyle="Continuous" ss:Weight="2"/>
+        <Border ss:Position="Right" ss:LineStyle="Continuous" ss:Weight="2"/>
+      </Borders>
+    </Style>
+    <Style ss:ID="s36t" ss:Parent="time">
+      <Borders>
+        <Border ss:Position="Left" ss:LineStyle="Continuous" ss:Weight="2"/>
+        <Border ss:Position="Right" ss:LineStyle="Continuous" ss:Weight="2"/>
+      </Borders>
+    </Style>
+
+    <Style ss:ID="s60">
+     <Font ss:FontName="Calibri" x:CharSet="238" x:Family="Swiss" ss:Size="12"
+      ss:Color="#000000"/>
+     <Interior/>
+    </Style>
+
+    <Style ss:ID="th10">
+      <Font ss:FontName="Calibri" x:CharSet="238" x:Family="Swiss" ss:Size="11" ss:Color="#000000" ss:Bold="1"/>
+    </Style>
+    <Style ss:ID="th11" ss:Parent="th10">
+      <Borders>
+        <Border ss:Position="Right" ss:LineStyle="Continuous" ss:Weight="2"/>
+      </Borders>
+    </Style>
+    <Style ss:ID="th12" ss:Parent="th10">
+      <Borders>
+        <Border ss:Position="Bottom" ss:LineStyle="Continuous" ss:Weight="2"/>
+      </Borders>
+    </Style>
+    <Style ss:ID="th13" ss:Parent="th10">
+      <Borders>
+        <Border ss:Position="Bottom" ss:LineStyle="Continuous" ss:Weight="1"/>
+      </Borders>
+    </Style>
+    <Style ss:ID="th14" ss:Parent="th10">
+      <Borders>
+        <Border ss:Position="Left" ss:LineStyle="Continuous" ss:Weight="2"/>
+        <Border ss:Position="Bottom" ss:LineStyle="Continuous" ss:Weight="2"/>
+      </Borders>
+    </Style>
+    <Style ss:ID="th15" ss:Parent="th14">
+      <Alignment ss:Horizontal="Center" ss:Vertical="Bottom"/>
+    </Style>
+    <Style ss:ID="th16" ss:Parent="th10">
+      <Borders>
+        <Border ss:Position="Left" ss:LineStyle="Continuous" ss:Weight="1"/>
+        <Border ss:Position="Bottom" ss:LineStyle="Continuous" ss:Weight="1"/>
+      </Borders>
+    </Style>
+    <Style ss:ID="th17" ss:Parent="th10">
+      <Borders>
+        <Border ss:Position="Left" ss:LineStyle="Continuous" ss:Weight="2"/>
+        <Border ss:Position="Bottom" ss:LineStyle="Continuous" ss:Weight="1"/>
+      </Borders>
+    </Style>
+    <Style ss:ID="th18" ss:Parent="th10">
+      <Borders>
+        <Border ss:Position="Right" ss:LineStyle="Continuous" ss:Weight="2"/>
+        <Border ss:Position="Bottom" ss:LineStyle="Continuous" ss:Weight="1"/>
+      </Borders>
+    </Style>
+  </Styles>
+</xsl:template>
+
+<!-- ************************************************************************************************-->
+<!-- Template: styles_for_html
+   It contains all the styling information for the html.
+  -->
+<!-- ************************************************************************************************-->
+<xsl:template name="styles_for_html">
+  <style type="text/css">
+  input {display:none;}
+  table {width:100%; border-collapse:collapse; }
+  table td { border:2px solid #DCDCDC; padding:3px 7px 2px 7px; }
+
+  <!-- table's thead section, columns header style -->
+  thead {
+    padding: 0.5em;
+    <!-- add gradient -->
+    background-color: #6682B4;
+    background: -webkit-gradient(linear, left top, left bottom, from(#87CEEB), to(#4682B4));
+    background: -moz-linear-gradient(top, #87CEEB, #4682B4);
+  }
+  table tbody tr:nth-child(even) {
+   background-color: #F0F8FF;
+  }
+
+  td.th15 { text-align:center }
+
+  </style>
+
+</xsl:template>
+
+</xsl:stylesheet>
+<!-- Template [End] -->

@@ -16,6 +16,7 @@
 <xsl:param name="OUTPUT" sap:type="string">excel</xsl:param>
 <xsl:param name="OUTPUT_METHOD" sap:type="string">xml</xsl:param>
 <xsl:param name="ENABLE_DROPDOWN_VALIDATION" sap:type="string">X</xsl:param>
+<xsl:variable name="su_data_sheet_name" select="'PT Data'"/>
 
 <xsl:output method="{$OUTPUT_METHOD}" indent="yes" encoding="UTF-8"/>
 
@@ -74,6 +75,21 @@
 
 <xsl:key name="properties" match="input:Row/input:Cell[1]/input:Data/text()" use="." />
 
+<!-- Cache exact allowed-list counts once per source list. SAP already supports
+     navigation of temporary trees here (as used for property_meta). -->
+<xsl:key name="su_allowed_lists" match="input:Data[contains(., '||ALLOWED_VALUES||')]"
+         use="substring-after(., '||ALLOWED_VALUES||')"/>
+<xsl:variable name="su_allowed_counts">
+  <xsl:for-each select="/input:Workbook/input:Worksheet/input:Table/input:Row/input:Cell/input:Data[contains(., '||ALLOWED_VALUES||')][generate-id() = generate-id(key('su_allowed_lists', substring-after(., '||ALLOWED_VALUES||'))[1])]">
+    <su_list values="{substring-after(., '||ALLOWED_VALUES||')}">
+      <xsl:call-template name="p_flat_property_unique_allowed_value_count">
+        <xsl:with-param name="allowed_values" select="substring-after(., '||ALLOWED_VALUES||')"/>
+        <xsl:with-param name="seen_values" select="''"/>
+      </xsl:call-template>
+    </su_list>
+  </xsl:for-each>
+</xsl:variable>
+
 <!-- Root Template -->
 
 <!-- Template [Start] -->
@@ -114,7 +130,7 @@
   </xsl:variable>
 
   <xsl:call-template name="open_page">
-    <xsl:with-param name="title" select="'Data'"/>
+    <xsl:with-param name="title" select="$su_data_sheet_name"/>
     <xsl:with-param name="column_profile" select="'Data'"/>
     <xsl:with-param name="rows" select="$property_rows"/>
     <xsl:with-param name="hidden_dropdown_col_count" select="number($hidden_dropdown_col_count)"/>
@@ -179,7 +195,7 @@
     <xsl:with-param name="rows" select="$property_rows"/>
   </xsl:call-template>
   <xsl:call-template name="open_page">
-    <xsl:with-param name="title" select="'Groups'"/>
+    <xsl:with-param name="title" select="'Composition data'"/>
     <xsl:with-param name="column_profile" select="'Groups'"/>
     <xsl:with-param name="rows" select="$group_rows"/>
     <xsl:with-param name="hidden_dropdown_col_count" select="0"/>
@@ -777,7 +793,7 @@
   <xsl:call-template name="draw_cell"><xsl:with-param name="text" select="'Instance'"/><xsl:with-param name="style" select="'zgreyh'"/></xsl:call-template>
   <xsl:call-template name="draw_cell"><xsl:with-param name="text" select="'Attribute'"/><xsl:with-param name="style" select="'zgreyh'"/></xsl:call-template>
   <xsl:call-template name="draw_cell"><xsl:with-param name="text" select="'Additional Information'"/><xsl:with-param name="style" select="'zgreyh'"/></xsl:call-template>
-  <xsl:call-template name="draw_cell"><xsl:with-param name="text" select="'Characteristic Name'"/><xsl:with-param name="style" select="'zgreyh'"/></xsl:call-template>
+  <xsl:call-template name="draw_cell"><xsl:with-param name="text" select="'Characteristic ID'"/><xsl:with-param name="style" select="'zgreyh'"/></xsl:call-template>
   <xsl:call-template name="draw_cell"><xsl:with-param name="text" select="'Characteristic Value'"/><xsl:with-param name="style" select="'th13'"/></xsl:call-template>
   <xsl:call-template name="close_row"/>
   <xsl:call-template name="close_table_header"/>
@@ -798,6 +814,22 @@
 <!-- ============================================================================================== -->
 <xsl:template name="p_flat_property">
   <xsl:param name="rows"/>
+
+  <!-- Folder rows precede this property's characteristic rows. -->
+  <xsl:for-each select="$rows[input:Cell[$g_prop_node_idx]/input:Data='ZPT_FOLDER'][input:Cell[$g_prop_mt_flag_idx]/input:Data='TABLEDATA']">
+    <xsl:call-template name="open_row"/>
+    <xsl:call-template name="draw_cell"><xsl:with-param name="text" select="input:Cell[$g_prop_desc_idx]/input:Data"/><xsl:with-param name="style" select="'zgrey'"/></xsl:call-template>
+    <xsl:call-template name="draw_cell"><xsl:with-param name="text" select="input:Cell[$g_prop_node_desc_idx]/input:Data"/><xsl:with-param name="style" select="'zgrey'"/></xsl:call-template>
+    <xsl:call-template name="draw_cell"><xsl:with-param name="text" select="'E'"/><xsl:with-param name="style" select="'zgrey'"/></xsl:call-template>
+    <xsl:call-template name="draw_cell"/><!-- VAT -->
+    <xsl:call-template name="draw_cell"/><!-- VAT ID -->
+    <xsl:call-template name="draw_cell"/><!-- Instance -->
+    <xsl:call-template name="draw_cell"/><!-- Attribute -->
+    <xsl:call-template name="draw_cell"/><!-- Additional Information -->
+    <xsl:call-template name="draw_cell"/><!-- Characteristic Name -->
+    <xsl:call-template name="draw_cell"/><!-- Characteristic Value -->
+    <xsl:call-template name="close_row"/>
+  </xsl:for-each>
 
   <xsl:for-each select="$property_meta/node">
     <xsl:variable name="node" select="."/>
@@ -1091,11 +1123,17 @@
 <!-- ============================================================================================== -->
 <xsl:template name="p_flat_property_allowed_value_count">
   <xsl:param name="allowed_values"/>
-
-  <xsl:call-template name="p_flat_property_unique_allowed_value_count">
-    <xsl:with-param name="allowed_values" select="$allowed_values"/>
-    <xsl:with-param name="seen_values" select="''"/>
-  </xsl:call-template>
+  <xsl:variable name="cached" select="$su_allowed_counts/su_list[@values = string($allowed_values)][1]"/>
+  <xsl:choose>
+    <xsl:when test="$cached"><xsl:value-of select="$cached"/></xsl:when>
+    <xsl:otherwise>
+      <!-- Preserve behavior for callers supplying a list absent from the source. -->
+      <xsl:call-template name="p_flat_property_unique_allowed_value_count">
+        <xsl:with-param name="allowed_values" select="$allowed_values"/>
+        <xsl:with-param name="seen_values" select="''"/>
+      </xsl:call-template>
+    </xsl:otherwise>
+  </xsl:choose>
 </xsl:template>
 
 <xsl:template name="p_flat_property_unique_allowed_value_count">
@@ -1243,10 +1281,13 @@
 <xsl:template name="p_flat_property_output_row_count">
   <xsl:param name="rows"/>
 
+  <xsl:variable name="characteristic_row_count">
   <xsl:call-template name="p_flat_property_output_row_count_nodes">
     <xsl:with-param name="rows" select="$rows"/>
     <xsl:with-param name="nodes" select="$property_meta/node"/>
   </xsl:call-template>
+  </xsl:variable>
+  <xsl:value-of select="number($characteristic_row_count) + count($rows[input:Cell[$g_prop_node_idx]/input:Data='ZPT_FOLDER'][input:Cell[$g_prop_mt_flag_idx]/input:Data='TABLEDATA'])"/>
 </xsl:template>
 
 <xsl:template name="p_flat_property_output_row_count_nodes">
@@ -1288,41 +1329,20 @@
 <xsl:template name="p_flat_property_output_row_count_datarows">
   <xsl:param name="datarows"/>
   <xsl:param name="field_count"/>
-
-  <xsl:choose>
-    <xsl:when test="count($datarows) = 0">0</xsl:when>
-    <xsl:otherwise>
-      <xsl:variable name="datarow" select="$datarows[1]"/>
-      <xsl:variable name="flat_vat_id" select="normalize-space($datarow/input:Cell[$g_prop_idx]/input:Data)"/>
-      <xsl:variable name="flat_vat_desc" select="normalize-space($datarow/input:Cell[$g_prop_desc_idx]/input:Data)"/>
-      <xsl:variable name="hide_group_vat_row" select="
-        $flat_vat_id='SAP_RMS_1012_005'
-        or $flat_vat_id='SAP_RMS_1012_010'
-        or $flat_vat_id='SAP_RMS_1012_021'
-        or $flat_vat_id='SAP_RMS_1012_022'
-        or $flat_vat_id='SAP_RMS_1012_025'
-        or $flat_vat_id='SAP_EHS_1012_003'
-        or $flat_vat_desc='Standard Composition'
-        or $flat_vat_desc='Allergens'
-        or $flat_vat_desc='Nutrient Composition'
-        or $flat_vat_desc='Diet Suitability'
-        or $flat_vat_desc='Religious Certificate Compliance'
-        or $flat_vat_desc='Genetically Modified Ingredients'"/>
-      <xsl:variable name="current_row_count">
-        <xsl:choose>
-          <xsl:when test="$hide_group_vat_row">0</xsl:when>
-          <xsl:otherwise><xsl:value-of select="number($field_count)"/></xsl:otherwise>
-        </xsl:choose>
-      </xsl:variable>
-      <xsl:variable name="remaining_row_count">
-        <xsl:call-template name="p_flat_property_output_row_count_datarows">
-          <xsl:with-param name="datarows" select="$datarows[position()>1]"/>
-          <xsl:with-param name="field_count" select="number($field_count)"/>
-        </xsl:call-template>
-      </xsl:variable>
-      <xsl:value-of select="number($current_row_count) + number($remaining_row_count)"/>
-    </xsl:otherwise>
-  </xsl:choose>
+  <!-- Same visibility predicate; avoid recursive slicing and numeric accumulation. -->
+  <xsl:value-of select="count($datarows[not(
+        normalize-space(input:Cell[$g_prop_idx]/input:Data)='SAP_RMS_1012_005'
+        or normalize-space(input:Cell[$g_prop_idx]/input:Data)='SAP_RMS_1012_010'
+        or normalize-space(input:Cell[$g_prop_idx]/input:Data)='SAP_RMS_1012_021'
+        or normalize-space(input:Cell[$g_prop_idx]/input:Data)='SAP_RMS_1012_022'
+        or normalize-space(input:Cell[$g_prop_idx]/input:Data)='SAP_RMS_1012_025'
+        or normalize-space(input:Cell[$g_prop_idx]/input:Data)='SAP_EHS_1012_003'
+        or normalize-space(input:Cell[$g_prop_desc_idx]/input:Data)='Standard Composition'
+        or normalize-space(input:Cell[$g_prop_desc_idx]/input:Data)='Allergens'
+        or normalize-space(input:Cell[$g_prop_desc_idx]/input:Data)='Nutrient Composition'
+        or normalize-space(input:Cell[$g_prop_desc_idx]/input:Data)='Diet Suitability'
+        or normalize-space(input:Cell[$g_prop_desc_idx]/input:Data)='Religious Certificate Compliance'
+        or normalize-space(input:Cell[$g_prop_desc_idx]/input:Data)='Genetically Modified Ingredients')]) * number($field_count)"/>
 </xsl:template>
 
 <xsl:template name="p_flat_property_visible_field_count">
@@ -1366,7 +1386,7 @@
   <xsl:call-template name="p_flat_property_dropdown_validation_nodes">
     <xsl:with-param name="rows" select="$rows"/>
     <xsl:with-param name="nodes" select="$property_meta/node"/>
-    <xsl:with-param name="row_no" select="$row_no"/>
+    <xsl:with-param name="row_no" select="$row_no + count($rows[input:Cell[$g_prop_node_idx]/input:Data='ZPT_FOLDER'][input:Cell[$g_prop_mt_flag_idx]/input:Data='TABLEDATA'])"/>
   </xsl:call-template>
 </xsl:template>
 
@@ -1527,8 +1547,12 @@
     <xsl:value-of select="$row_no"/>
     <xsl:text disable-output-escaping="yes">C10&lt;/Range&gt;</xsl:text>
     <xsl:text disable-output-escaping="yes">&lt;Type&gt;List&lt;/Type&gt;</xsl:text>
+    <!-- CellRangeList is an empty flag; the source reference belongs in Value. -->
+    <xsl:text disable-output-escaping="yes">&lt;CellRangeList/&gt;</xsl:text>
     <xsl:text disable-output-escaping="yes">&lt;UseBlank/&gt;</xsl:text>
-    <xsl:text disable-output-escaping="yes">&lt;Value&gt;=Data!R</xsl:text>
+    <xsl:text disable-output-escaping="yes">&lt;Value&gt;'</xsl:text>
+    <xsl:value-of select="$su_data_sheet_name"/>
+    <xsl:text disable-output-escaping="yes">'!R</xsl:text>
     <xsl:value-of select="$row_no"/>
     <xsl:text disable-output-escaping="yes">C11:R</xsl:text>
     <xsl:value-of select="$row_no"/>
@@ -2737,7 +2761,7 @@
     <xsl:when test="$col_idx = 6">Instance</xsl:when>
     <xsl:when test="$col_idx = 7">Attribute</xsl:when>
     <xsl:when test="$col_idx = 8">Additional Information</xsl:when>
-    <xsl:when test="$col_idx = 9">Characteristic Name</xsl:when>
+    <xsl:when test="$col_idx = 9">Characteristic ID</xsl:when>
     <xsl:otherwise>Characteristic Value</xsl:otherwise>
   </xsl:choose>
 </xsl:template>
